@@ -14,12 +14,13 @@ struct GameWebView: UIViewRepresentable {
         config.mediaTypesRequiringUserActionForPlayback = []
         config.userContentController.add(context.coordinator, name: "zing")
 
-        // Mark the environment as native so the page can prefer the bridge.
-        let flag = WKUserScript(source: "window.__ZING_NATIVE__ = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        // Mark the environment as native (with phone linking available) so the page can use the bridges.
+        let flag = WKUserScript(source: "window.__ZING_NATIVE__ = true; window.__ZING_MP__ = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true)
         config.userContentController.addUserScript(flag)
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
+        context.coordinator.multipeer.webView = webView
         webView.isOpaque = false
         webView.backgroundColor = UIColor(red: 0x12 / 255, green: 0x0d / 255, blue: 0x2b / 255, alpha: 1)
         webView.scrollView.backgroundColor = webView.backgroundColor
@@ -41,10 +42,12 @@ struct GameWebView: UIViewRepresentable {
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
     static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        coordinator.multipeer.stop()
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: "zing")
     }
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+        let multipeer = MultipeerBridge()
         private let synthesizer = AVSpeechSynthesizer()
         private let light = UIImpactFeedbackGenerator(style: .light)
         private let medium = UIImpactFeedbackGenerator(style: .medium)
@@ -66,6 +69,8 @@ struct GameWebView: UIViewRepresentable {
                 speak(text: body["text"] as? String ?? "")
             case "stopSpeak":
                 synthesizer.stopSpeaking(at: .immediate)
+            case "mp":
+                multipeer.handle(body)
             default:
                 break
             }

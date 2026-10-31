@@ -11,6 +11,16 @@ Grown-up and Expert levels add several thousand Trivial Pursuit-style general kn
 imported from the Open Trivia Database.
 Funny synthesised noises play for right and wrong answers (cheers, boings, sad trombones).
 
+**Ways to play**
+
+* **Turn by turn** (default): every round, everyone in the same age group gets the same question. Answers are
+  locked in without showing the result, then the round is revealed together with who got it right.
+* **Classic**: each player gets their own question and sees the answer straight away.
+* **Teams**: put players in Red, Blue, Green or Yellow. Team totals decide the winner.
+* **Link phones** (iOS app only): one phone hosts, others join over Bluetooth and peer-to-peer Wi-Fi using
+  Apple's Multipeer Connectivity. No internet or router is needed. Each phone holds its own players, everyone
+  answers the same questions at the same time, and the scoreboard syncs after every round.
+
 ## Built for ADHD and dyslexia
 
 * One thing on screen at a time. A clear "pass the phone to..." screen between every turn.
@@ -27,7 +37,7 @@ Funny synthesised noises play for right and wrong answers (cheers, boings, sad t
 * `web/` is the whole game: plain HTML, CSS and JavaScript, no build step, no network needed.
   `content.js` and `content-extra.js` hold the question bank.
 * `ios/` is a thin SwiftUI shell that shows the game full screen in a WKWebView and bridges
-  haptics and text to speech to native iOS. The web folder is copied into the app bundle.
+  haptics, text to speech and Multipeer phone linking to native iOS. The web folder is copied into the app bundle.
 * `project.yml` describes the Xcode project. CI generates `Zing.xcodeproj` with XcodeGen.
 * `fastlane/` + `.github/workflows/testflight.yml` build, sign (fastlane match, certificates
   stored encrypted on a branch of this repo) and upload to TestFlight on a GitHub-hosted Mac.

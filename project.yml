@@ -45,6 +45,11 @@ targets:
         UIUserInterfaceStyle: Dark
         UIStatusBarHidden: true
         UIViewControllerBasedStatusBarAppearance: false
+        NSLocalNetworkUsageDescription: Zing links nearby phones over Wi-Fi and Bluetooth so several phones can play the same game. No internet is used.
+        NSBluetoothAlwaysUsageDescription: Zing uses Bluetooth to link nearby phones playing the same game.
+        NSBonjourServices:
+          - _zing-quiz._tcp
+          - _zing-quiz._udp
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jonrussell.zing  # overridden by fastlane from the BUNDLE_ID variable
