@@ -10,7 +10,8 @@ require(path.resolve(__dirname, '../web/content-dingbats.js'));
 require(path.resolve(__dirname, '../web/content-xmas.js'));
 require(path.resolve(__dirname, '../web/content-eras.js'));
 require(path.resolve(__dirname, '../web/content-faces.js'));
-const C = window.CONTENT, X = window.CONTENT_EXTRA, T = window.CONTENT_TRIVIA, M = window.CONTENT_MUSIC, D = window.CONTENT_DINGBATS, XM = window.CONTENT_XMAS, E = window.CONTENT_ERAS, F = window.CONTENT_FACES;
+require(path.resolve(__dirname, '../web/content-friends.js'));
+const C = window.CONTENT, X = window.CONTENT_EXTRA, T = window.CONTENT_TRIVIA, M = window.CONTENT_MUSIC, D = window.CONTENT_DINGBATS, XM = window.CONTENT_XMAS, E = window.CONTENT_ERAS, F = window.CONTENT_FACES, FR = window.CONTENT_FRIENDS;
 const errors = [];
 const ids = new Map();
 const seenQ = new Map();
@@ -53,6 +54,7 @@ const TL = { q: 30, opt: 9 };
 
 (XM.quiz || []).forEach(i => check(i, 'quiz'));
 (XM.tf || []).forEach(i => check(i, 'tf'));
+(FR.quiz || []).forEach(i => { check(i, 'quiz', { q: 24, opt: 10 }); if (![3, 4].includes(i.level)) errors.push(`friends ${i.id}: must be level 3 or 4 (grown-ups only)`); });
 (E.quiz || []).forEach(i => { check(i, 'quiz', { q: 22, opt: 7 }); if (!(i.era >= 1960 && i.era <= 2020 && i.era % 10 === 0)) errors.push(`eras ${i.id}: bad era`); });
 (D.items || []).forEach(d => {
   if (ids.has(d.id)) errors.push(`dingbat ${d.id}: duplicate id`); ids.set(d.id, 'dingbat');
@@ -65,7 +67,7 @@ faces.forEach(f => {
   if (!require('fs').existsSync(path.resolve(__dirname, '../web', f.img))) errors.push(`face ${f.id}: image file missing ${f.img}`);
   if (/NC|ND/i.test(f.credit.licence)) errors.push(`face ${f.id}: non-free licence ${f.credit.licence}`);
 });
-console.log(`Dingbats: ${(D.items || []).length} | Christmas: ${(XM.quiz || []).length + (XM.tf || []).length} | Eras: ${(E.quiz || []).length} | Faces: ${faces.length}`);
+console.log(`Friends: ${(FR.quiz || []).length} | Dingbats: ${(D.items || []).length} | Christmas: ${(XM.quiz || []).length + (XM.tf || []).length} | Eras: ${(E.quiz || []).length} | Faces: ${faces.length}`);
 if (faces.length && faces.length < 60) errors.push('fewer than 60 famous faces; the picture round would repeat too soon');
 const tracks = (M && M.tracks) || [];
 tracks.forEach(t => {
@@ -77,7 +79,7 @@ tracks.forEach(t => {
 const sixtiesNineties = tracks.filter(t => t.decade === 1960 || t.decade === 1990).length;
 if (tracks.length && sixtiesNineties / tracks.length < 0.65) errors.push('music bank should be weighted to the 1960s and 1990s');
 console.log(`Music: ${tracks.length} tracks (${Math.round(100 * sixtiesNineties / Math.max(1, tracks.length))}% from the 60s and 90s)`);
-const all = [...(C.quiz||[]), ...(X.quiz||[]), ...(C.emoji||[]), ...(X.flags||[]), ...(X.tf||[]), ...(T.quiz||[]), ...(T.tf||[]), ...(XM.quiz||[]), ...(XM.tf||[]), ...(E.quiz||[])];
+const all = [...(C.quiz||[]), ...(X.quiz||[]), ...(C.emoji||[]), ...(X.flags||[]), ...(X.tf||[]), ...(T.quiz||[]), ...(T.tf||[]), ...(XM.quiz||[]), ...(XM.tf||[]), ...(E.quiz||[]), ...(FR.quiz||[])];
 const byLevel = [1, 2, 3, 4].map(l => all.filter(i => i.level === l).length);
 const cats = [...new Set(all.map(i => i.cat))];
 console.log(`Questions: ${all.length} total  | by level: kid ${byLevel[0]}, family ${byLevel[1]}, grown-up ${byLevel[2]}, expert ${byLevel[3]}`);

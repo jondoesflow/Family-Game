@@ -165,6 +165,13 @@ const assert = require('assert');
     const all = window.ZING.activePool();
     out.defaultExcludesXmas = !all.some(q => q.cat === 'Christmas');
     out.defaultIncludesFaces = all.some(q => q.type === 'face') || !window.ZING.pool.some(q => q.type === 'face');
+    // Friends is opt-in and grown-ups only: never in the default set, never served to kids or teens
+    out.friendsNotDefault = !all.some(q => q.cat === 'Friends');
+    window.ZING.setGroups(['friends']);
+    out.friendsForAdults = window.ZING.activePool('adult').length >= 70 && window.ZING.activePool('adult').every(q => q.cat === 'Friends');
+    out.friendsNotForKids = !window.ZING.activePool('kid').some(q => q.cat === 'Friends') && !window.ZING.activePool('teen').some(q => q.cat === 'Friends');
+    out.kidPickWithFriendsOnly = (() => { for (let i = 0; i < 50; i++) { const q = window.ZING.pickAtLevel(3, {}, null, 'teen'); if (q.cat === 'Friends') return false; } return true; })();
+    window.ZING.setGroups(null);
     out.pickedDingbatAtKid = (() => { window.ZING.setGroups(['dingbats']); const q = window.ZING.pickAtLevel(1, {}, null); window.ZING.setGroups(null); return q.type === 'dingbat'; })();
     // every question maps to at least one group
     out.allTagged = window.ZING.pool.every(q => q.groups && q.groups.length);

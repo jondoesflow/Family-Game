@@ -145,6 +145,7 @@
     { id: "faces", name: "Famous faces", ic: "📸", types: ["face"] },
     { id: "dingbats", name: "Dingbats", ic: "🧩", types: ["dingbat"] },
     { id: "xmas", name: "Christmas", ic: "🎄", cats: ["Christmas"], optIn: true },
+    { id: "friends", name: "Friends (hard)", ic: "☕", cats: ["Friends"], optIn: true, adultsOnly: true },
     { id: "e1960", name: "1960s", ic: "🕰", era: 1960 }, { id: "e1970", name: "1970s", ic: "🕰", era: 1970 }, { id: "e1980", name: "1980s", ic: "🕰", era: 1980 }, { id: "e1990", name: "1990s", ic: "🕰", era: 1990 },
     { id: "e2000", name: "2000s", ic: "🕰", era: 2000 }, { id: "e2010", name: "2010s", ic: "🕰", era: 2010 }, { id: "e2020", name: "2020s", ic: "🕰", era: 2020 }
   ];
@@ -161,7 +162,8 @@
     var gs = [];
     if (q.type !== "music" && q.type !== "face" && q.type !== "dingbat") gs.push(CAT_TO_GROUP[q.cat] || "general");
     var primary = GROUPS.filter(function (g) { return g.id === gs[0]; })[0];
-    if (primary && primary.optIn) { q.groups = gs; return q; }   // opt-in rounds (Christmas) never leak into other groups
+    if (primary && primary.adultsOnly) q.adultsOnly = true;
+    if (primary && primary.optIn) { q.groups = gs; return q; }   // opt-in rounds (Christmas, Friends) never leak into other groups
     GROUPS.forEach(function (g) { if (g.types && g.types.indexOf(q.type) >= 0 && gs.indexOf(g.id) < 0) gs.push(g.id); });
     var era = eraOf(q);
     if (era) { var eg = "e" + era; if (GROUPS.some(function (g) { return g.id === eg; }) && gs.indexOf(eg) < 0) gs.push(eg); }
@@ -190,6 +192,8 @@
     (E.quiz || []).forEach(function (q) { pool.push(Object.assign({ type: "mc" }, q)); });
     var D = window.CONTENT_DINGBATS || {};
     (D.items || []).forEach(function (d) { pool.push(Object.assign({ type: "dingbat", cat: "Dingbats", q: "What does this say?" }, d)); });
+    var FRQ = window.CONTENT_FRIENDS || {};
+    (FRQ.quiz || []).forEach(function (q) { pool.push(Object.assign({ type: "mc" }, q)); });
     var F = window.CONTENT_FACES || {};
     (F.faces || []).forEach(function (f) { pool.push(Object.assign({ type: "face", cat: "Famous Faces", q: "" }, f)); });
     pool.forEach(tagGroups);
@@ -212,15 +216,15 @@
   // previous games until the whole pool at that level has been used.
   var selectedGroups = null;   // set for the current game (host side); null means the saved/default choice
   function currentGroups() { return selectedGroups || gameOpts.cats || defaultGroups(); }
-  function activePool() {
-    var gs = currentGroups(); var music = musicAvailable();
-    var pool = POOL.filter(function (q) { if (q.type === "music" && !music) return false; return q.groups.some(function (g) { return gs.indexOf(g) >= 0; }); });
-    if (!pool.length) pool = POOL.filter(function (q) { return q.type !== "music" || music; });
+  function activePool(band) {
+    var gs = currentGroups(); var music = musicAvailable(); var adult = band === "adult" || !band;
+    var pool = POOL.filter(function (q) { if (q.type === "music" && !music) return false; if (q.adultsOnly && !adult) return false; return q.groups.some(function (g) { return gs.indexOf(g) >= 0; }); });
+    if (!pool.length) pool = POOL.filter(function (q) { return (q.type !== "music" || music) && !(q.adultsOnly && !adult); });
     return pool;
   }
   var TYPE_WEIGHTS = { mc: 0.40, emoji: 0.18, tf: 0.12, music: 0.14, face: 0.10, dingbat: 0.06 };
-  function pickQuestionAtLevel(level, usedIds, lastCat) {
-    var pool = activePool();
+  function pickQuestionAtLevel(level, usedIds, lastCat, band) {
+    var pool = activePool(band);
     var present = {}; pool.forEach(function (q) { present[q.type] = true; });
     var weights = {}; Object.keys(TYPE_WEIGHTS).forEach(function (t) { if (present[t]) weights[t] = TYPE_WEIGHTS[t]; });
     var type = weightedPick(weights);
@@ -242,7 +246,7 @@
     }
     return pool[0] || POOL[0];
   }
-  function pickQuestion(player, usedIds, lastCat) { return pickQuestionAtLevel(pickLevel(player.band), usedIds, lastCat); }
+  function pickQuestion(player, usedIds, lastCat) { return pickQuestionAtLevel(pickLevel(player.band), usedIds, lastCat, player.band); }
 
   // A question prepared for play: options shuffled, correct index recomputed. Safe to send to other phones.
   function prepareQuestion(q) {
@@ -413,7 +417,7 @@
       el("li", { text: "Classic: each player gets their own question and sees the answer straight away." }),
       el("li", { text: "Teams: tap the badge next to a player to put them in Red, Blue, Green or Yellow. Team scores add up." }),
       el("li", { text: "Link phones: one phone hosts, the others join over Bluetooth. Each phone holds its own players and everyone answers at the same time." }),
-      el("li", { text: "Categories: the host picks one or many. Topics, famous faces, dingbats, a Christmas round, and eras from the 1960s to the 2020s." }),
+      el("li", { text: "Categories: the host picks one or many. Topics, famous faces, dingbats, a Christmas round, a hard Friends round (grown-ups only), and eras from the 1960s to the 2020s." }),
       el("li", { text: "Music rounds: a 30 second clip plays. Name the song, the artist or the year. Needs internet." }),
       el("li", { text: "Famous faces: a photo sharpens slowly, or two faces are mashed together. Dingbats: say what the picture-word puzzle means." }),
       el("li", { text: "10 points for a right answer, plus a speed bonus with the timer on, plus 5 for three in a row. On linked phones it is fastest finger first: 15, 12, 10, then 8 points." })
@@ -894,10 +898,14 @@
       var S = Host.S; S.round += 1;
       var list = Host.playerList();
       var byBand = {}, byLevel = {};
-      list.forEach(function (p) { if (!byBand[p.band]) byBand[p.band] = pickLevel(p.band); });
-      Object.keys(byBand).forEach(function (b) {
-        var lv = byBand[b];
-        if (!byLevel[lv]) { var q = pickQuestionAtLevel(lv, S.used, null); S.used[q.id] = true; seen[q.id] = true; byLevel[lv] = prepareQuestion(q); }
+      // Grown-ups pick first so an adults-only question can never be shared down to a younger band at the same level.
+      var bandsPresent = []; list.forEach(function (p) { if (bandsPresent.indexOf(p.band) < 0) bandsPresent.push(p.band); });
+      bandsPresent.sort(function (a, b) { return (b === "adult") - (a === "adult"); });
+      bandsPresent.forEach(function (b) {
+        var lv = pickLevel(b);
+        if (byLevel[lv] && byLevel[lv].adultsOnly && b !== "adult") lv = Math.min(lv, 2);
+        byBand[b] = lv;
+        if (!byLevel[lv]) { var q = pickQuestionAtLevel(lv, S.used, null, b); S.used[q.id] = true; seen[q.id] = true; byLevel[lv] = prepareQuestion(q); byLevel[lv].adultsOnly = !!q.adultsOnly; }
       });
       save("zing.seen", seen);
       S.pending = {}; S.results = {};

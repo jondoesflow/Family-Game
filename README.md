@@ -14,7 +14,8 @@ Funny synthesised noises play for right and wrong answers (cheers, boings, sad t
 
 **Categories** (the host picks one or many): General knowledge, Science & nature, Geography & travel,
 History, Film TV & books, Music, Sport & games, Food & drink, Famous faces (a photo sharpens slowly, or two
-faces mashed together), Dingbats (picture-word puzzles), a Christmas round (opt-in), and eras from the 1960s to
+faces mashed together), Dingbats (picture-word puzzles), a Christmas round (opt-in), a hard Friends round
+(opt-in, grown-ups only: Kid and Teen players are never given it), and eras from the 1960s to
 the 2020s (news, events and music by decade).
 
 **Ways to play**
