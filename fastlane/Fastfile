@@ -1,0 +1,117 @@
+# Zing — TestFlight pipeline. Everything runs on a GitHub-hosted Mac; no laptop needed.
+default_platform(:ios)
+
+BUNDLE_ID   = ENV["BUNDLE_ID"]
+TEAM_ID     = ENV["APPLE_TEAM_ID"]
+SCHEME      = "Zing"
+PROJECT     = "Zing.xcodeproj"
+
+def asc_token!(key)
+  Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+    key_id: key[:key_id], issuer_id: key[:issuer_id], key: key[:key],
+    is_key_content_base64: key[:is_key_content_base64], duration: key[:duration], in_house: key[:in_house]
+  )
+end
+
+def asc_key
+  app_store_connect_api_key(
+    key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
+    issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
+    key_content: ENV["APP_STORE_CONNECT_KEY_CONTENT"],
+    is_key_content_base64: false,
+    in_house: false
+  )
+end
+
+platform :ios do
+  desc "Make sure the bundle ID exists in the Apple Developer portal"
+  lane :ensure_bundle_id do
+    asc_token!(asc_key)
+    existing = Spaceship::ConnectAPI::BundleId.all(filter: { identifier: BUNDLE_ID }).find { |b| b.identifier == BUNDLE_ID }
+    if existing
+      UI.success("Bundle ID #{BUNDLE_ID} already registered.")
+    else
+      UI.message("Registering bundle ID #{BUNDLE_ID} ...")
+      Spaceship::ConnectAPI::BundleId.create(name: "Zing Quiz", identifier: BUNDLE_ID, platform: Spaceship::ConnectAPI::BundleIdPlatform::IOS)
+      UI.success("Registered #{BUNDLE_ID}.")
+    end
+  end
+
+  desc "Check the app record exists in App Store Connect (this must be created once, by hand, on the website)"
+  lane :check_app_record do
+    asc_token!(asc_key)
+    app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+    if app.nil?
+      UI.important("=" * 78)
+      UI.important("The app record for #{BUNDLE_ID} does not exist in App Store Connect yet.")
+      UI.important("On your phone, open https://appstoreconnect.apple.com/apps")
+      UI.important("Tap the + button > New App, choose iOS, name it 'Zing Quiz',")
+      UI.important("pick the Bundle ID '#{BUNDLE_ID}' from the list, SKU 'zing-quiz-1', then Create.")
+      UI.important("Then re-run this workflow. Nothing else needs changing.")
+      UI.important("=" * 78)
+      UI.user_error!("App record missing in App Store Connect (see instructions above).")
+    end
+    UI.success("Found App Store Connect app: #{app.name} (#{app.id})")
+  end
+
+  desc "Fetch or create the App Store signing certificate and profile"
+  lane :signing do
+    key = asc_key
+    match(
+      type: "appstore",
+      app_identifier: [BUNDLE_ID],
+      api_key: key,
+      git_basic_authorization: Base64.strict_encode64("x-access-token:#{ENV['GITHUB_TOKEN']}"),
+      readonly: false,
+      force_for_new_devices: false,
+      platform: "ios"
+    )
+  end
+
+  desc "Build the app and upload it to TestFlight"
+  lane :beta do
+    setup_ci(force: true)   # temporary keychain so match can import the certificate on the runner
+    ensure_bundle_id
+    check_app_record
+    signing
+
+    profile_name = ENV["sigh_#{BUNDLE_ID}_appstore_profile-name"]
+    UI.user_error!("match did not export a profile name") if profile_name.to_s.empty?
+
+    update_code_signing_settings(
+      path: PROJECT,
+      targets: [SCHEME],
+      use_automatic_signing: false,
+      team_id: TEAM_ID,
+      bundle_identifier: BUNDLE_ID,
+      code_sign_identity: "iPhone Distribution",
+      profile_name: profile_name
+    )
+
+    build_number = (ENV["BUILD_NUMBER"] || ENV["GITHUB_RUN_NUMBER"] || "1").to_s
+
+    build_app(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "build",
+      output_name: "Zing.ipa",
+      clean: true,
+      xcargs: "CURRENT_PROJECT_VERSION=#{build_number}",
+      export_options: {
+        provisioningProfiles: { BUNDLE_ID => profile_name },
+        signingStyle: "manual",
+        teamID: TEAM_ID
+      }
+    )
+
+    upload_to_testflight(
+      api_key: asc_key,
+      ipa: "build/Zing.ipa",
+      skip_waiting_for_build_processing: true,
+      changelog: "Zing Quiz build #{build_number}"
+    )
+    UI.success("Uploaded build #{build_number}. It will appear in TestFlight in about 10 to 20 minutes.")
+  end
+end

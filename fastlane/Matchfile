@@ -1,0 +1,7 @@
+# Signing certificates and profiles are stored, encrypted, on a "certificates" branch
+# of this same repository. MATCH_PASSWORD (a GitHub secret) is the encryption key.
+storage_mode("git")
+git_url(ENV["MATCH_GIT_URL"])
+git_branch("certificates")
+type("appstore")
+readonly(false)

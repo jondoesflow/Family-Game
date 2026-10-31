@@ -1,0 +1,13 @@
+# Generated on CI
+Zing.xcodeproj/
+build/
+*.ipa
+*.dSYM.zip
+fastlane/report.xml
+fastlane/README.md
+.bundle/
+vendor/
+node_modules/
+.DS_Store
+# Local scratch
+/dist/

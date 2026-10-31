@@ -1,0 +1,57 @@
+# XcodeGen spec. The CI pipeline runs `xcodegen generate` to produce Zing.xcodeproj,
+# so no Xcode project file is committed and nothing here needs a Mac to edit.
+name: Zing
+options:
+  bundleIdPrefix: com.jonrussell
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+targets:
+  Zing:
+    type: application
+    platform: iOS
+    sources:
+      - path: ios/FamilyGame
+      - path: web
+        type: folder
+        buildPhase: resources
+    info:
+      path: ios/FamilyGame/Info.plist
+      properties:
+        CFBundleDisplayName: Zing
+        CFBundleName: Zing
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIRequiresFullScreen: true
+        UIUserInterfaceStyle: Dark
+        UIStatusBarHidden: true
+        UIViewControllerBasedStatusBarAppearance: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jonrussell.zing  # overridden by fastlane from the BUNDLE_ID variable
+        PRODUCT_NAME: Zing
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Manual
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ""
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        SUPPORTS_MACCATALYST: NO

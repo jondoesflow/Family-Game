@@ -1,0 +1,3 @@
+# Values come from environment variables set by the GitHub Actions workflow.
+app_identifier(ENV["BUNDLE_ID"])
+team_id(ENV["APPLE_TEAM_ID"])
