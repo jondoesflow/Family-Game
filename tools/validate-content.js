@@ -2,7 +2,7 @@
 // Runs in CI before every build so a typo in a question can never ship.
 const path = require('path');
 global.window = {};
-require(path.resolve(__dirname, '../web/content.js'));
+require(path.resolve(__dirname, '../web/content-core.js'));
 require(path.resolve(__dirname, '../web/content-extra.js'));
 const C = window.CONTENT, X = window.CONTENT_EXTRA;
 const errors = [];
@@ -18,7 +18,7 @@ function check(item, kind) {
   else {
     const words = item.q.trim().split(/\s+/).length;
     if (words > 18) errors.push(`${kind} ${item.id}: question is ${words} words (max 18)`);
-    const key = item.q.trim().toLowerCase();
+    const key = ((item.prompt || '') + ' ' + item.q).trim().toLowerCase();
     if (seenQ.has(key)) errors.push(`${kind} ${item.id}: duplicate question text (also ${seenQ.get(key)})`);
     seenQ.set(key, item.id);
   }

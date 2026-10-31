@@ -45,7 +45,7 @@ Open `web/index.html` in any browser to play.
 
 ### Adding questions
 
-Append to `web/content.js` (or `content-extra.js`) following the existing shape, then run `npm run validate`.
+Append to `web/content-core.js` (or `content-extra.js`) following the existing shape, then run `npm run validate`.
 `level` is 1 (Kid, 8 to 12), 2 (Family) or 3 (Grown-up). Keep questions under 16 words and options under 4.
 
 ## Licences
