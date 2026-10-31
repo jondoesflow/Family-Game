@@ -157,7 +157,9 @@ const assert = require('assert');
     out.dingbatsOnly = window.ZING.activePool().every(q => q.type === 'dingbat') && window.ZING.activePool().length >= 40;
     window.ZING.setGroups(['e1960']);
     const p60 = window.ZING.activePool();
-    out.sixtiesHasMusicAndNews = p60.some(q => q.type === 'music' && q.decade === 1960) && p60.some(q => q.era === 1960);
+    // music may be temporarily disabled if a clip failed to load (no internet on CI), so check tagging on the raw pool
+    const tagged60 = window.ZING.pool.filter(q => q.groups.includes('e1960'));
+    out.sixtiesHasMusicAndNews = tagged60.some(q => q.type === 'music' && q.decade === 1960) && p60.some(q => q.era === 1960);
     out.sixtiesNoOtherDecades = p60.every(q => !q.decade || q.decade === 1960);
     window.ZING.setGroups(['xmas']);
     out.xmasOnly = window.ZING.activePool().every(q => q.cat === 'Christmas');
@@ -205,6 +207,34 @@ const assert = require('assert');
   // reset categories to all for later runs
   await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('zing.gameOpts')); o.cats = null; localStorage.setItem('zing.gameOpts', JSON.stringify(o)); });
   await page.click('text=Quit');
+
+  /* ---------- Solo mode: one player, no pass screens, personal best ---------- */
+  await page.evaluate(() => { localStorage.setItem('zing.players', JSON.stringify([{ id: 'solo1', name: 'Jon', avatar: '🦊', band: 'adult', team: null }])); localStorage.removeItem('zing.best'); });
+  await page.reload(); await page.waitForSelector('.logo');
+  await page.click('text=Play on this phone');
+  await page.waitForSelector('text=Solo mode');
+  await page.click('text=Play solo');
+  await page.waitForSelector('text=Solo game');
+  await page.click('text=Quick');
+  await page.click('text=Start game');
+  await page.waitForSelector('.pass-hero');
+  await page.click('.btn.primary');
+  for (let i = 0; i < 5; i++) {
+    await page.waitForSelector('.answers .ans');
+    assert.strictEqual(await page.locator('.pass-hero').count(), 0, 'solo mode should not show pass screens between questions');
+    await page.click('.answers .ans >> nth=0');
+    await page.waitForSelector('.result');
+    await page.click('.result .btn.primary');
+  }
+  await page.waitForSelector('.winner-line');
+  const soloLine = await page.textContent('.winner-line');
+  assert(/points/.test(soloLine), 'solo final should show a score: ' + soloLine);
+  const best = await page.evaluate(() => JSON.parse(localStorage.getItem('zing.best') || '{}'));
+  assert(best[5] !== undefined, 'a best score should be saved');
+  await page.click('text=Home');
+  // restore the three players for the settings check below
+  await page.evaluate(() => { localStorage.setItem('zing.players', JSON.stringify([{ id: 'a', name: 'Nana', avatar: '🦊', band: 'adult', team: null }, { id: 'b', name: 'Ellie', avatar: '🐼', band: 'kid', team: null }, { id: 'c', name: 'Dad', avatar: '🦄', band: 'adult', team: null }])); });
+  await page.reload(); await page.waitForSelector('.logo');
 
   /* ---------- Settings persist ---------- */
   await page.click('text=Settings');

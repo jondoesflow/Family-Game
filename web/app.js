@@ -145,7 +145,7 @@
     { id: "faces", name: "Famous faces", ic: "📸", types: ["face"] },
     { id: "dingbats", name: "Dingbats", ic: "🧩", types: ["dingbat"] },
     { id: "xmas", name: "Christmas", ic: "🎄", cats: ["Christmas"], optIn: true },
-    { id: "friends", name: "Friends (hard)", ic: "☕", cats: ["Friends"], optIn: true, adultsOnly: true },
+    { id: "friends", name: "Friends: the TV show (hard)", ic: "☕", cats: ["Friends"], optIn: true, adultsOnly: true },
     { id: "e1960", name: "1960s", ic: "🕰", era: 1960 }, { id: "e1970", name: "1970s", ic: "🕰", era: 1970 }, { id: "e1980", name: "1980s", ic: "🕰", era: 1980 }, { id: "e1990", name: "1990s", ic: "🕰", era: 1990 },
     { id: "e2000", name: "2000s", ic: "🕰", era: 2000 }, { id: "e2010", name: "2010s", ic: "🕰", era: 2010 }, { id: "e2020", name: "2020s", ic: "🕰", era: 2020 }
   ];
@@ -396,6 +396,7 @@
     s.appendChild(el("div", { class: "grow" }));
     var stack = el("div", { class: "stack" });
     stack.appendChild(btn("▶  Play on this phone", function () { show(screenPlayers()); }, "primary"));
+    stack.appendChild(el("p", { class: "muted small", text: "One player or a whole family." }));
     stack.appendChild(btn("📡  Link phones", function () { show(screenLink()); }, ""));
     var row = el("div", { class: "btn-row" });
     row.appendChild(btn("How to play", function () { show(screenHowTo()); }, "ghost"));
@@ -413,6 +414,7 @@
     card.appendChild(el("h2", { text: "One phone, or several." }));
     card.appendChild(el("ul", {}, [
       el("li", { text: "Add each player and pick their age group. Kids get kid questions, grown-ups get Trivial Pursuit level. Same scoreboard." }),
+      el("li", { text: "On your own? Add just one player for solo mode: straight through the questions, chasing your best score." }),
       el("li", { text: "Turn by turn: everyone in the same age group gets the same question each round. Answers lock in, then the round is revealed together." }),
       el("li", { text: "Classic: each player gets their own question and sees the answer straight away." }),
       el("li", { text: "Teams: tap the badge next to a player to put them in Red, Blue, Green or Yellow. Team scores add up." }),
@@ -483,7 +485,7 @@
     var s = el("section", { class: "screen", "aria-label": "Players" });
     s.appendChild(topbar(btn("‹ Home", function () { show(screenHome()); }, "ghost slim"), "Who's playing?"));
     var list = el("div", { class: "player-list" });
-    if (!players.length) list.appendChild(el("p", { class: "muted center", text: "Add at least 2 players to start." }));
+    if (!players.length) list.appendChild(el("p", { class: "muted center", text: "Add the first player to start. One is fine: that is solo mode." }));
     players.forEach(function (p, i) {
       list.appendChild(playerRow(p, {
         teams: gameOpts.teams,
@@ -493,11 +495,13 @@
     });
     s.appendChild(list);
     s.appendChild(btn("＋ Add a player", function () { show(screenAddPlayer(function (p) { players.push(p); save("zing.players", players); show(screenPlayers()); }, function () { show(screenPlayers()); })); }, "", { disabled: players.length >= 8 ? "true" : null }));
-    s.appendChild(toggleRow("Play in teams", "Tap a player's badge to pick their team.", gameOpts.teams, function (v) { gameOpts.teams = v; if (v) autoTeams(players); save("zing.players", players); save("zing.gameOpts", gameOpts); show(screenPlayers()); }));
+    if (players.length >= 2) s.appendChild(toggleRow("Play in teams", "Tap a player's badge to pick their team.", gameOpts.teams, function (v) { gameOpts.teams = v; if (v) autoTeams(players); save("zing.players", players); save("zing.gameOpts", gameOpts); show(screenPlayers()); }));
+    else if (players.length === 1) s.appendChild(el("p", { class: "muted small center", text: "Solo mode: " + players[0].name + " plays straight through and tries to beat their best score." }));
     s.appendChild(el("div", { class: "grow" }));
-    var ok = players.length >= 2 && teamsValid(players);
+    var solo = players.length === 1;
+    var ok = players.length >= 1 && (solo || teamsValid(players));
     if (players.length >= 2 && !ok) s.appendChild(el("p", { class: "muted small center", text: "Every player needs a team, and you need at least two teams." }));
-    s.appendChild(btn("Next  ›", function () { show(screenSetup()); }, "primary", { disabled: ok ? null : "true" }));
+    s.appendChild(btn(solo ? "Play solo  ›" : "Next  ›", function () { show(screenSetup()); }, "primary", { disabled: ok ? null : "true" }));
     return s;
   }
 
@@ -533,8 +537,9 @@
     return s;
   }
 
+  function isSolo() { return players.length === 1; }
   function optionSegs(container, onChange) {
-    container.appendChild(seg("How to play", gameOpts.mode, [{ label: "Turn by turn", value: "shared", sub: "Same question for all, reveal together" }, { label: "Classic", value: "classic", sub: "Own question, instant answer" }], function (v) { gameOpts.mode = v; save("zing.gameOpts", gameOpts); onChange(); }));
+    if (!isSolo()) container.appendChild(seg("How to play", gameOpts.mode, [{ label: "Turn by turn", value: "shared", sub: "Same question for all, reveal together" }, { label: "Classic", value: "classic", sub: "Own question, instant answer" }], function (v) { gameOpts.mode = v; save("zing.gameOpts", gameOpts); onChange(); }));
     container.appendChild(seg("Game length", gameOpts.length, [{ label: "Quick", value: 5, sub: "5 rounds" }, { label: "Normal", value: 8, sub: "8 rounds" }, { label: "Long", value: 12, sub: "12 rounds" }], function (v) { gameOpts.length = v; save("zing.gameOpts", gameOpts); onChange(); }));
     container.appendChild(seg("Timer", gameOpts.timer, [{ label: "Relaxed", value: 0, sub: "No timer" }, { label: "Gentle", value: 25, sub: "25 seconds" }, { label: "Speedy", value: 12, sub: "12 seconds" }], function (v) { gameOpts.timer = v; save("zing.gameOpts", gameOpts); onChange(); }));
   }
@@ -589,7 +594,8 @@
 
   function screenSetup() {
     var s = el("section", { class: "screen", "aria-label": "Game setup" });
-    s.appendChild(topbar(btn("‹ Players", function () { show(screenPlayers()); }, "ghost slim"), "Game setup"));
+    s.appendChild(topbar(btn("‹ Players", function () { show(screenPlayers()); }, "ghost slim"), isSolo() ? "Solo game" : "Game setup"));
+    if (isSolo()) { var best = (load("zing.best", {}))[gameOpts.length]; s.appendChild(el("div", { class: "card" }, [el("h3", { text: players[0].avatar + " " + players[0].name + " vs the quiz" }), el("p", { class: "muted", text: best ? "Best score for " + gameOpts.length + " rounds: " + best + " points." : "No best score yet for " + gameOpts.length + " rounds. Set one!" })])); }
     s.appendChild(categoryRow(gameOpts.cats, function () { show(screenCategories(gameOpts.cats, function (sel) { gameOpts.cats = sel; save("zing.gameOpts", gameOpts); show(screenSetup()); })); }));
     optionSegs(s, function () { show(screenSetup()); });
     var strip = el("div", { class: "score-strip" });
@@ -598,7 +604,7 @@
     s.appendChild(el("div", { class: "grow" }));
     s.appendChild(btn("Start game  ⚡", function () {
       selectedGroups = (gameOpts.cats && gameOpts.cats.length) ? gameOpts.cats.slice() : null;
-      if (gameOpts.mode === "classic") startClassic();
+      if (gameOpts.mode === "classic" || isSolo()) startClassic();
       else startSharedLocal();
     }, "primary"));
     return s;
@@ -785,7 +791,7 @@
   /* ================= CLASSIC MODE (one phone, own questions, instant reveal) ================= */
   var G = null;
   function startClassic() {
-    G = { players: players.map(function (p) { return Object.assign({}, p, { score: 0, streak: 0, correct: 0, lastCat: null }); }), round: 0, turn: 0, total: gameOpts.length, used: {} };
+    G = { players: players.map(function (p) { return Object.assign({}, p, { score: 0, streak: 0, correct: 0, lastCat: null }); }), round: 0, turn: 0, total: gameOpts.length, used: {}, solo: players.length === 1 };
     show(classicPass());
   }
   function classicPass() {
@@ -793,10 +799,11 @@
     var s = el("section", { class: "screen", "aria-label": "Pass the phone" });
     s.appendChild(topbar(btn("✕ Quit", function () { show(screenHome()); }, "ghost slim"), "Round " + (G.round + 1) + " of " + G.total));
     s.appendChild(el("div", { class: "grow" }));
-    s.appendChild(passHero(p, p.score + " points" + (p.streak >= 2 ? " · 🔥 " + p.streak + " in a row" : "")));
+    if (G.solo) { var hero = el("div", { class: "pass-hero" }); hero.appendChild(avatarEl(p, true)); hero.appendChild(el("div", { class: "name", text: p.name })); hero.appendChild(el("p", { class: "muted lead", text: G.total + " questions. 10 points each, bonuses for streaks" + (gameOpts.timer ? " and speed" : "") + "." })); s.appendChild(hero); }
+    else s.appendChild(passHero(p, p.score + " points" + (p.streak >= 2 ? " · 🔥 " + p.streak + " in a row" : "")));
     s.appendChild(el("div", { class: "grow" }));
-    s.appendChild(miniStrip(G.players));
-    s.appendChild(btn("I'm " + p.name + ". Ready!  ›", function () { Sounds.whoosh(); classicQuestion(); }, "primary"));
+    if (!G.solo) s.appendChild(miniStrip(G.players));
+    s.appendChild(btn(G.solo ? "Let's go  ›" : "I'm " + p.name + ". Ready!  ›", function () { Sounds.whoosh(); classicQuestion(); }, "primary"));
     if (G.turn === 0) setTimeout(Sounds.chime, 100);
     return s;
   }
@@ -837,11 +844,33 @@
       setTimeout(function () { try { nextBtn.scrollIntoView({ behavior: settings.motion === "reduce" ? "auto" : "smooth", block: "end" }); } catch (e) {} }, 60);
     });
   }
+  function soloFinal() {
+    var p = G.players[0];
+    var bests = load("zing.best", {});
+    var prev = bests[G.total] || 0;
+    var isBest = bests[G.total] === undefined || p.score > prev;
+    if (isBest) { bests[G.total] = p.score; save("zing.best", bests); }
+    var s = el("section", { class: "screen center", "aria-label": "Your result" });
+    s.appendChild(topbar(null, "Your result"));
+    s.appendChild(el("div", { class: "grow" }));
+    s.appendChild(el("div", { class: "crown", "aria-hidden": "true", text: isBest ? "🏆" : p.correct >= G.total * 0.7 ? "🌟" : "💪" }));
+    s.appendChild(el("div", { class: "winner-line", text: p.score + " points" }));
+    s.appendChild(el("p", { class: "lead", text: p.correct + " of " + G.total + " right" }));
+    s.appendChild(el("p", { class: "muted", text: isBest ? (prev ? "New best! Your old best was " + prev + "." : "That's your first best score for " + G.total + " rounds.") : "Your best for " + G.total + " rounds is " + prev + "." }));
+    s.appendChild(el("div", { class: "grow" }));
+    var row = el("div", { class: "btn-row" });
+    row.appendChild(btn("Play again", startClassic, "primary"));
+    row.appendChild(btn("Home", function () { show(screenHome()); }, "ghost"));
+    s.appendChild(row);
+    setTimeout(function () { if (isBest) { Sounds.fanfare(); confettiBurst(400); Native.haptic("success"); } else Sounds.chime(); }, 300);
+    return s;
+  }
   function classicNext() {
     G.turn += 1;
     if (G.turn >= G.players.length) {
       G.turn = 0; G.round += 1;
-      if (G.round >= G.total) { show(finalScreen(G.players, gameOpts.teams, startClassic, function () { show(screenHome()); })); return; }
+      if (G.round >= G.total) { show(G.solo ? soloFinal() : finalScreen(G.players, gameOpts.teams, startClassic, function () { show(screenHome()); })); return; }
+      if (G.solo) { classicQuestion(); return; }
       var s = el("section", { class: "screen", "aria-label": "Scores" });
       s.appendChild(topbar(null, "Scores after round " + G.round));
       s.appendChild(scoreboardEl(G.players, gameOpts.teams, true));
