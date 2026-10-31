@@ -6,7 +6,9 @@ Each player picks an age group once. The game then pitches every question at tha
 so a child and a grandparent compete on the same scoreboard and both have a fair shot.
 
 **Question types** (picked at random every turn): multiple choice, emoji puzzles (films, flags,
-places), and true or false. Everything in the bank is fact-checked, timeless general knowledge.
+places), and true or false. The Kid level is hand-written for 8 to 12 year olds. The Family,
+Grown-up and Expert levels add several thousand Trivial Pursuit-style general knowledge questions
+imported from the Open Trivia Database.
 Funny synthesised noises play for right and wrong answers (cheers, boings, sad trombones).
 
 ## Built for ADHD and dyslexia
@@ -46,8 +48,14 @@ Open `web/index.html` in any browser to play.
 ### Adding questions
 
 Append to `web/content-core.js` (or `content-extra.js`) following the existing shape, then run `npm run validate`.
-`level` is 1 (Kid, 8 to 12), 2 (Family) or 3 (Grown-up). Keep questions under 16 words and options under 4.
+`level` is 1 (Kid, 8 to 12), 2 (Family), 3 (Grown-up) or 4 (Expert). Keep hand-written questions under 16 words and options under 4.
+
+To refresh the imported trivia bank, run `node tools/import-opentdb.js` (about ten minutes, the API is rate limited).
+It rewrites `web/content-trivia.js`, skipping the Politics, Celebrities and Anime categories and capping video games, comics and cartoons.
 
 ## Licences
+
+Trivia questions in `web/content-trivia.js` come from the [Open Trivia Database](https://opentdb.com) and are
+licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Hand-written questions are original.
 
 Fonts: Atkinson Hyperlegible (Braille Institute, OFL), OpenDyslexic (OFL), Fredoka (OFL). All bundled in `web/fonts/`.

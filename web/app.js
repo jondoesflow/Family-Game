@@ -48,9 +48,10 @@
 
   /* ---------------- Content pool ---------------- */
   var AVATARS = ["🦊", "🐼", "🦄", "🐸", "🐙", "🦁", "🐧", "🐨", "🦖", "🐝", "🐬", "🦋", "🐯", "🐮", "🐵", "🦩", "🐢", "🦉", "🐲", "🍄", "🌟", "🚀", "🍕", "🎸"];
-  var BANDS = { kid: { label: "Kid", sub: "Ages 8 to 12", weights: { 1: 0.82, 2: 0.18, 3: 0 } },
-                teen: { label: "Teen", sub: "Ages 13 to 17", weights: { 1: 0.15, 2: 0.65, 3: 0.20 } },
-                adult: { label: "Grown-up", sub: "Ages 18 to 80 and beyond", weights: { 1: 0.05, 2: 0.50, 3: 0.45 } } };
+  // Levels: 1 Kid, 2 Family, 3 Grown-up, 4 Expert. Each age band draws from a mix of levels.
+  var BANDS = { kid: { label: "Kid", sub: "Ages 8 to 12", weights: { 1: 0.85, 2: 0.15, 3: 0, 4: 0 } },
+                teen: { label: "Teen", sub: "Ages 13 to 17", weights: { 1: 0.10, 2: 0.60, 3: 0.30, 4: 0 } },
+                adult: { label: "Grown-up", sub: "Ages 18 to 80 and beyond", weights: { 1: 0, 2: 0.20, 3: 0.55, 4: 0.25 } } };
   var CAT_COLOURS = {};
   var CAT_PALETTE = ["#ff5e7e", "#ffb443", "#2ed3b7", "#8b6cff", "#ff8c42", "#3cb4ff", "#e85cff", "#6ee7b7", "#f472b6", "#fbbf24"];
 
@@ -58,11 +59,14 @@
     var pool = [];
     var C = window.CONTENT || {};
     var X = window.CONTENT_EXTRA || {};
+    var T = window.CONTENT_TRIVIA || {};
     (C.quiz || []).forEach(function (q) { pool.push(Object.assign({ type: "mc" }, q)); });
     (X.quiz || []).forEach(function (q) { pool.push(Object.assign({ type: "mc" }, q)); });
     (C.emoji || []).forEach(function (q) { pool.push(Object.assign({ type: "emoji" }, q)); });
     (X.flags || []).forEach(function (q) { pool.push(Object.assign({ type: "emoji" }, q)); });
     (X.tf || []).forEach(function (q) { pool.push(Object.assign({ type: "tf" }, q)); });
+    (T.quiz || []).forEach(function (q) { pool.push(Object.assign({ type: "mc" }, q)); });
+    (T.tf || []).forEach(function (q) { pool.push(Object.assign({ type: "tf" }, q)); });
     var ci = 0;
     pool.forEach(function (q) { if (!CAT_COLOURS[q.cat]) { CAT_COLOURS[q.cat] = CAT_PALETTE[ci % CAT_PALETTE.length]; ci++; } });
     return pool;
@@ -204,6 +208,7 @@
     s.appendChild(btn("Test a noise 🔊", function () { Math.random() < 0.5 ? Sounds.correct() : Sounds.wrong(); }, "ghost"));
     s.appendChild(btn("Forget which questions I've seen", function () { seen = {}; save("zing.seen", seen); toast("Question history cleared"); }, "ghost"));
     s.appendChild(el("p", { class: "muted small center", text: "Zing Quiz · " + POOL.length + " questions · made for families" }));
+    s.appendChild(el("p", { class: "muted small center", text: "Includes questions from the Open Trivia Database (opentdb.com), CC BY-SA 4.0." }));
     return s;
   }
 
