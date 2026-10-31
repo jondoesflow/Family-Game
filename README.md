@@ -6,10 +6,16 @@ Each player picks an age group once. The game then pitches every question at tha
 so a child and a grandparent compete on the same scoreboard and both have a fair shot.
 
 **Question types** (picked at random every turn): multiple choice, emoji puzzles (films, flags,
-places), and true or false. The Kid level is hand-written for 8 to 12 year olds. The Family,
+places), true or false, and music rounds (a 30 second clip plays; name the song, the artist or the year,
+weighted to the 1960s and 1990s). The Kid level is hand-written for 8 to 12 year olds. The Family,
 Grown-up and Expert levels add several thousand Trivial Pursuit-style general knowledge questions
 imported from the Open Trivia Database.
 Funny synthesised noises play for right and wrong answers (cheers, boings, sad trombones).
+
+**Categories** (the host picks one or many): General knowledge, Science & nature, Geography & travel,
+History, Film TV & books, Music, Sport & games, Food & drink, Famous faces (a photo sharpens slowly, or two
+faces mashed together), Dingbats (picture-word puzzles), a Christmas round (opt-in), and eras from the 1960s to
+the 2020s (news, events and music by decade).
 
 **Ways to play**
 
@@ -19,7 +25,15 @@ Funny synthesised noises play for right and wrong answers (cheers, boings, sad t
 * **Teams**: put players in Red, Blue, Green or Yellow. Team totals decide the winner.
 * **Link phones** (iOS app only): one phone hosts, others join over Bluetooth and peer-to-peer Wi-Fi using
   Apple's Multipeer Connectivity. No internet or router is needed. Each phone holds its own players, everyone
-  answers the same questions at the same time, and the scoreboard syncs after every round.
+  answers the same questions at the same time, and the scoreboard syncs after every round. Scoring is fastest
+  finger first: 15, 12, 10, then 8 points for the right answers in order of speed.
+
+Famous-face photos are Wikipedia lead images under free licences (CC BY, CC BY-SA, CC0, public domain or the UK
+Open Government Licence), bundled in `web/faces/` with the photographer and licence shown on screen and listed
+under Settings, Photo credits. Rebuild the set with `node tools/fetch-faces.js` after editing `tools/faces-list.json`.
+
+Music rounds stream preview clips from Apple's iTunes Search API, so they need an internet connection; offline,
+the game simply asks other kinds of question. The sound-effects switch never silences music clips.
 
 ## Built for ADHD and dyslexia
 
@@ -60,6 +74,9 @@ Open `web/index.html` in any browser to play.
 Append to `web/content-core.js` (or `content-extra.js`) following the existing shape, then run `npm run validate`.
 `level` is 1 (Kid, 8 to 12), 2 (Family), 3 (Grown-up) or 4 (Expert). Keep hand-written questions under 16 words and options under 4.
 
+To change the music bank, edit `tools/music-list.json` (artist, title, original release year, level) and run
+`node tools/resolve-music.js`, which looks up a preview clip for each track and writes `web/content-music.js`.
+
 To refresh the imported trivia bank, run `node tools/import-opentdb.js` (about ten minutes, the API is rate limited).
 It rewrites `web/content-trivia.js`, skipping the Politics, Celebrities and Anime categories and capping video games, comics and cartoons.
 
@@ -67,5 +84,8 @@ It rewrites `web/content-trivia.js`, skipping the Politics, Celebrities and Anim
 
 Trivia questions in `web/content-trivia.js` come from the [Open Trivia Database](https://opentdb.com) and are
 licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Hand-written questions are original.
+
+Music preview clips are streamed at play time from Apple's iTunes Search API and remain Apple's and the rights
+holders' property; nothing is bundled.
 
 Fonts: Atkinson Hyperlegible (Braille Institute, OFL), OpenDyslexic (OFL), Fredoka (OFL). All bundled in `web/fonts/`.

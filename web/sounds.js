@@ -162,7 +162,24 @@
       for (var i = 0; i < seq.length; i++) tone({ freq: seq[i][0], dur: i === seq.length - 1 ? 1.2 : 0.22, type: "triangle", vol: 0.3, at: seq[i][1] });
       noise({ freq: 1000, to: 2000, dur: 1.6, vol: 0.18, q: 0.6, attack: 0.3, at: 0.6 });
     },
-    drumroll: function () { for (var i = 0; i < 16; i++) noise({ freq: 250, dur: 0.07, vol: 0.18, q: 1.5, type: "lowpass", at: i * 0.07 }); }
+    drumroll: function () { for (var i = 0; i < 16; i++) noise({ freq: 250, dur: 0.07, vol: 0.18, q: 1.5, type: "lowpass", at: i * 0.07 }); },
+    // A question lands on screen
+    pop: function () { tone({ freq: 420, to: 900, dur: 0.12, type: "sine", vol: 0.2 }); noise({ freq: 2500, dur: 0.08, vol: 0.06, type: "highpass" }); },
+    // Answer locked in (turn by turn)
+    lock: function () { tone({ freq: 220, to: 110, dur: 0.12, type: "square", vol: 0.12, filter: 900 }); tone({ freq: 1500, dur: 0.05, type: "sine", vol: 0.12, at: 0.1 }); },
+    // Scoreboard bars rising
+    rise: function () { tone({ freq: 300, to: 1200, dur: 0.7, type: "sine", vol: 0.12 }); for (var i = 0; i < 6; i++) tone({ freq: 600 + i * 150, dur: 0.1, type: "triangle", vol: 0.08, at: 0.1 + i * 0.1 }); },
+    // Round starts
+    chime: function () { tone({ freq: 880, dur: 0.3, type: "sine", vol: 0.2 }); tone({ freq: 1320, dur: 0.5, type: "sine", vol: 0.18, at: 0.15 }); tone({ freq: 1760, dur: 0.7, type: "sine", vol: 0.12, at: 0.3 }); },
+    // Another phone joined / left
+    connect: function () { tone({ freq: 660, dur: 0.12, type: "triangle", vol: 0.2 }); tone({ freq: 990, dur: 0.25, type: "triangle", vol: 0.2, at: 0.13 }); },
+    disconnect: function () { tone({ freq: 990, dur: 0.12, type: "triangle", vol: 0.2 }); tone({ freq: 660, dur: 0.3, type: "triangle", vol: 0.2, at: 0.13 }); },
+    // Before a round reveal: drumroll then a stab
+    reveal: function () { Sounds.drumroll(); tone({ freq: 523, dur: 0.15, type: "triangle", vol: 0.3, at: 1.15 }); tone({ freq: 784, dur: 0.6, type: "triangle", vol: 0.3, at: 1.3 }); noise({ freq: 3000, dur: 0.5, vol: 0.06, at: 1.3, type: "highpass" }); },
+    // Countdown tick when the timer is nearly up
+    beep: function () { tone({ freq: 880, dur: 0.08, type: "square", vol: 0.08 }); },
+    // Music question: little record-scratch intro
+    scratch: function () { noise({ freq: 1200, to: 300, dur: 0.18, vol: 0.2, q: 3, type: "bandpass" }); noise({ freq: 400, to: 1500, dur: 0.14, vol: 0.16, q: 3, type: "bandpass", at: 0.18 }); }
   };
   window.Sounds = Sounds;
 })();

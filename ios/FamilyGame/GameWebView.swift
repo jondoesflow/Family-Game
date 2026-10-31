@@ -71,6 +71,17 @@ struct GameWebView: UIViewRepresentable {
                 synthesizer.stopSpeaking(at: .immediate)
             case "mp":
                 multipeer.handle(body)
+            case "http":
+                // Small JSON fetch on behalf of the page (used to refresh music preview links).
+                guard let id = body["id"] as? String, let urlString = body["url"] as? String, let url = URL(string: urlString), url.scheme == "https" else { return }
+                let webView = message.webView
+                URLSession.shared.dataTask(with: url) { data, response, _ in
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    let text = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+                    let payload: [String: Any] = ["id": id, "status": status, "body": text]
+                    guard let json = try? JSONSerialization.data(withJSONObject: payload), let js = String(data: json, encoding: .utf8) else { return }
+                    DispatchQueue.main.async { webView?.evaluateJavaScript("window.ZingHTTP && window.ZingHTTP._done(\(js));", completionHandler: nil) }
+                }.resume()
             default:
                 break
             }
