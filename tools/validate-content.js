@@ -72,7 +72,7 @@ if (faces.length && faces.length < 60) errors.push('fewer than 60 famous faces; 
 const tracks = (M && M.tracks) || [];
 tracks.forEach(t => {
   if (!t.id || !t.artist || !t.title || !t.preview || !/^https:\/\//.test(t.preview)) errors.push(`music ${t.id}: missing field or preview url`);
-  if (!(t.year >= 1950 && t.year <= 2025)) errors.push(`music ${t.id}: odd year ${t.year}`);
+  if (!(t.year >= 1950 && t.year <= new Date().getFullYear())) errors.push(`music ${t.id}: odd year ${t.year}`);
   if (![2, 3].includes(t.level)) errors.push(`music ${t.id}: level must be 2 or 3`);
   if (ids.has(t.id)) errors.push(`music ${t.id}: duplicate id`); ids.set(t.id, 'music');
 });

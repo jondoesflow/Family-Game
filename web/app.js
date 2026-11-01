@@ -308,8 +308,10 @@
     else if (form === "artist") { out.q = "Who is this by?"; var o2 = shuffle([t.artist].concat(others("artist"))); out.options = o2; out.answer = o2.indexOf(t.artist); }
     else {
       out.q = t.yearKind === "no1" ? "Which year did this reach number one in the UK?" : "Which year was this released?";
-      var offs = shuffle([-7, -5, -3, -2, 2, 3, 5, 7]).slice(0, 3);
-      var years = [t.year].concat(offs.map(function (o) { return t.year + o; })).sort(function (a, b) { return a - b; });
+      var nowYear = new Date().getFullYear();
+      var decoys = shuffle([-7, -5, -3, -2, 2, 3, 5, 7]).map(function (o) { return t.year + o; }).filter(function (y) { return y <= nowYear && y >= 1950; }).slice(0, 3);
+      while (decoys.length < 3) decoys.push(t.year - 9 - decoys.length);   // very recent tracks: fall back to earlier years
+      var years = [t.year].concat(decoys).sort(function (a, b) { return a - b; });
       out.options = years.map(String); out.answer = years.indexOf(t.year); out.keepOrder = true;
     }
     return out;

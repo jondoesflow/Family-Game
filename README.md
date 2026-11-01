@@ -78,8 +78,10 @@ Open `web/index.html` in any browser to play.
 Append to `web/content-core.js` (or `content-extra.js`) following the existing shape, then run `npm run validate`.
 `level` is 1 (Kid, 8 to 12), 2 (Family), 3 (Grown-up) or 4 (Expert). Keep hand-written questions under 16 words and options under 4.
 
-To change the music bank, edit `tools/music-list.json` (artist, title, original release year, level) and run
-`node tools/resolve-music.js`, which looks up a preview clip for each track and writes `web/content-music.js`.
+The music bank is `tools/music-list.json` (hand-curated classics with original release years) plus
+`tools/music-list-uk.json` (every UK number one since 1952, scraped with `node tools/fetch-uk-number-ones.js`).
+`node tools/resolve-music.js` looks up a preview clip and Apple's genre for each track (cached in
+`tools/music-cache.json`) and writes `web/content-music.js`.
 
 To refresh the imported trivia bank, run `node tools/import-opentdb.js` (about ten minutes, the API is rate limited).
 It rewrites `web/content-trivia.js`, skipping the Politics, Celebrities and Anime categories and capping video games, comics and cartoons.
