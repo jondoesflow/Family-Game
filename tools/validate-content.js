@@ -76,9 +76,9 @@ tracks.forEach(t => {
   if (![2, 3].includes(t.level)) errors.push(`music ${t.id}: level must be 2 or 3`);
   if (ids.has(t.id)) errors.push(`music ${t.id}: duplicate id`); ids.set(t.id, 'music');
 });
-const sixtiesNineties = tracks.filter(t => t.decade === 1960 || t.decade === 1990).length;
-if (tracks.length && sixtiesNineties / tracks.length < 0.65) errors.push('music bank should be weighted to the 1960s and 1990s');
-console.log(`Music: ${tracks.length} tracks (${Math.round(100 * sixtiesNineties / Math.max(1, tracks.length))}% from the 60s and 90s)`);
+const byDec = {}; tracks.forEach(t => { byDec[t.decade] = (byDec[t.decade] || 0) + 1; });
+tracks.forEach(t => { if (t.yearKind && !['release', 'no1'].includes(t.yearKind)) errors.push(`music ${t.id}: bad yearKind`); });
+console.log(`Music: ${tracks.length} tracks by decade ${JSON.stringify(byDec)}`);
 const all = [...(C.quiz||[]), ...(X.quiz||[]), ...(C.emoji||[]), ...(X.flags||[]), ...(X.tf||[]), ...(T.quiz||[]), ...(T.tf||[]), ...(XM.quiz||[]), ...(XM.tf||[]), ...(E.quiz||[]), ...(FR.quiz||[])];
 const byLevel = [1, 2, 3, 4].map(l => all.filter(i => i.level === l).length);
 const cats = [...new Set(all.map(i => i.cat))];

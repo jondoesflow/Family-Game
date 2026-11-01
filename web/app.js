@@ -71,22 +71,36 @@
   window.ZingHTTP = HTTP;
 
   /* ---------------- Music clip player (always plays, regardless of the sound-effects setting) ---------------- */
+  var SILENCE = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
   var Clip = {
-    el: document.getElementById("clip"), onProgress: null, onEnd: null, onError: null, src: null,
+    el: document.getElementById("clip"), onProgress: null, onEnd: null, onError: null, src: null, unlocked: false, loading: false, lastTap: 0,
+    // iOS only lets audio start inside a user gesture; playing a silent clip on the first tap unlocks the element for later autoplay.
+    unlock: function () {
+      if (Clip.unlocked || !Clip.el) return; Clip.unlocked = true;
+      try { Clip.el.src = SILENCE; var pr = Clip.el.play(); if (pr && pr.then) pr.then(function () { Clip.el.pause(); }).catch(function () {}); } catch (e) {}
+    },
     play: function (url) {
       var a = Clip.el; if (!a) return;
-      Clip.src = url;
-      try { a.pause(); a.src = url; a.currentTime = 0; a.volume = 1; var pr = a.play(); if (pr && pr.catch) pr.catch(function () { if (Clip.onError) Clip.onError("blocked"); }); } catch (e) { if (Clip.onError) Clip.onError(String(e)); }
+      Clip.src = url; Clip.loading = true;
+      try { a.pause(); a.src = url; a.currentTime = 0; a.volume = 1; a.load(); var pr = a.play(); if (pr && pr.catch) pr.catch(function () { Clip.loading = false; if (Clip.onProgress) Clip.onProgress(0, true); }); } catch (e) { Clip.loading = false; if (Clip.onError) Clip.onError(String(e)); }
     },
-    toggle: function () { var a = Clip.el; if (!a) return; if (a.paused) { if (a.src) a.play().catch(function () {}); } else a.pause(); },
-    stop: function () { var a = Clip.el; if (!a) return; try { a.pause(); a.removeAttribute("src"); a.load(); } catch (e) {} Clip.onProgress = null; Clip.onEnd = null; Clip.onError = null; Clip.src = null; }
+    toggle: function () {
+      var a = Clip.el; if (!a || !Clip.src) return;
+      var now = Date.now(); if (now - Clip.lastTap < 500) return; Clip.lastTap = now;   // ignore accidental double taps
+      if (Clip.loading && !a.paused) return;
+      if (a.paused) { Clip.loading = true; var pr = a.play(); if (pr && pr.catch) pr.catch(function () { Clip.loading = false; }); }
+      else a.pause();
+    },
+    stop: function () { var a = Clip.el; if (!a) return; try { a.pause(); a.removeAttribute("src"); a.load(); } catch (e) {} Clip.onProgress = null; Clip.onEnd = null; Clip.onError = null; Clip.src = null; Clip.loading = false; }
   };
   if (Clip.el) {
     Clip.el.addEventListener("timeupdate", function () { if (Clip.onProgress && Clip.el.duration) Clip.onProgress(Clip.el.currentTime / Clip.el.duration, Clip.el.paused); });
     Clip.el.addEventListener("play", function () { if (Clip.onProgress) Clip.onProgress(Clip.el.duration ? Clip.el.currentTime / Clip.el.duration : 0, false); });
+    Clip.el.addEventListener("playing", function () { Clip.loading = false; if (Clip.onProgress) Clip.onProgress(Clip.el.duration ? Clip.el.currentTime / Clip.el.duration : 0, false); });
+    Clip.el.addEventListener("waiting", function () { Clip.loading = true; if (Clip.onProgress) Clip.onProgress(Clip.el.duration ? Clip.el.currentTime / Clip.el.duration : 0, false); });
     Clip.el.addEventListener("pause", function () { if (Clip.onProgress) Clip.onProgress(Clip.el.duration ? Clip.el.currentTime / Clip.el.duration : 0, true); });
     Clip.el.addEventListener("ended", function () { if (Clip.onEnd) Clip.onEnd(); });
-    Clip.el.addEventListener("error", function () { musicTrouble = Date.now(); if (Clip.onError) Clip.onError("error"); });
+    Clip.el.addEventListener("error", function () { if (Clip.el.src === SILENCE || !Clip.src) return; Clip.loading = false; musicTrouble = Date.now(); if (Clip.onError) Clip.onError("error"); });
   }
   var musicTrouble = 0;
   function musicAvailable() { return (window.CONTENT_MUSIC && window.CONTENT_MUSIC.tracks && window.CONTENT_MUSIC.tracks.length > 0) && navigator.onLine !== false && (Date.now() - musicTrouble > 120000); }
@@ -107,7 +121,7 @@
   var settings = Object.assign({ size: "normal", font: "clear", motion: "full", sounds: true, readAloud: false }, load("zing.settings", {}));
   var players = load("zing.players", []);
   var seen = load("zing.seen", {});
-  var gameOpts = Object.assign({ length: 8, timer: 0, mode: "shared", teams: false, cats: null }, load("zing.gameOpts", {}));
+  var gameOpts = Object.assign({ length: 8, timer: 0, mode: "shared", teams: false, cats: null, genres: null, soloLength: 20 }, load("zing.gameOpts", {}));
   players.forEach(function (p, i) { if (!p.id) p.id = "p" + Date.now().toString(36) + i; if (p.team === undefined) p.team = null; });
 
   function applySettings() {
@@ -149,6 +163,24 @@
     { id: "e1960", name: "1960s", ic: "🕰", era: 1960 }, { id: "e1970", name: "1970s", ic: "🕰", era: 1970 }, { id: "e1980", name: "1980s", ic: "🕰", era: 1980 }, { id: "e1990", name: "1990s", ic: "🕰", era: 1990 },
     { id: "e2000", name: "2000s", ic: "🕰", era: 2000 }, { id: "e2010", name: "2010s", ic: "🕰", era: 2010 }, { id: "e2020", name: "2020s", ic: "🕰", era: 2020 }
   ];
+  // Music genres, mapped from Apple's genre names.
+  var GENRES = [
+    { id: "pop", name: "Pop", ic: "🎤", re: /pop|adult contemporary|easy listening|vocal|teen/i },
+    { id: "rock", name: "Rock & metal", ic: "🎸", re: /rock|metal|punk|grunge|hard rock|prog/i },
+    { id: "dance", name: "Dance & electronic", ic: "🪩", re: /dance|electronic|house|techno|trance|disco|dubstep|garage|drum/i },
+    { id: "soul", name: "R&B & soul", ic: "🎷", re: /r&b|soul|funk|motown/i },
+    { id: "hiphop", name: "Hip-hop & rap", ic: "🎧", re: /hip-?hop|rap|grime/i },
+    { id: "indie", name: "Indie & alternative", ic: "🪕", re: /alternative|indie|britpop|new wave/i },
+    { id: "country", name: "Country & folk", ic: "🤠", re: /country|folk|singer|americana|bluegrass/i },
+    { id: "reggae", name: "Reggae & ska", ic: "🌴", re: /reggae|ska|dancehall/i },
+    { id: "stage", name: "Soundtracks & musicals", ic: "🎬", re: /soundtrack|musical|stage|screen|film/i },
+    { id: "jazz", name: "Jazz, blues & classical", ic: "🎺", re: /jazz|blues|classical|big band|swing|opera/i },
+    { id: "xmas", name: "Christmas songs", ic: "🎄", re: /holiday|christmas/i },
+    { id: "other", name: "Everything else", ic: "🎶", re: /./ }
+  ];
+  function genreOf(t) { var g = String(t.genre || "Pop"); for (var i = 0; i < GENRES.length; i++) { if (GENRES[i].id === "other") continue; if (GENRES[i].re.test(g)) return GENRES[i].id; } return "other"; }
+  var selectedGenres = null;
+  function currentGenres() { return selectedGenres || gameOpts.genres || null; }
   var CAT_TO_GROUP = {};
   GROUPS.forEach(function (g) { (g.cats || []).forEach(function (c) { CAT_TO_GROUP[c] = g.id; }); });
   function defaultGroups() { return GROUPS.filter(function (g) { return !g.optIn; }).map(function (g) { return g.id; }); }
@@ -184,7 +216,7 @@
     (T.quiz || []).forEach(function (q) { pool.push(Object.assign({ type: "mc" }, q)); });
     (T.tf || []).forEach(function (q) { pool.push(Object.assign({ type: "tf" }, q)); });
     var M = window.CONTENT_MUSIC || {};
-    (M.tracks || []).forEach(function (t) { pool.push(Object.assign({ type: "music", q: "" }, t)); });
+    (M.tracks || []).forEach(function (t) { pool.push(Object.assign({ type: "music", q: "", genreId: genreOf(t) }, t)); });
     var XM = window.CONTENT_XMAS || {};
     (XM.quiz || []).forEach(function (q) { pool.push(Object.assign({ type: "mc" }, q)); });
     (XM.tf || []).forEach(function (q) { pool.push(Object.assign({ type: "tf" }, q)); });
@@ -218,7 +250,8 @@
   function currentGroups() { return selectedGroups || gameOpts.cats || defaultGroups(); }
   function activePool(band) {
     var gs = currentGroups(); var music = musicAvailable(); var adult = band === "adult" || !band;
-    var pool = POOL.filter(function (q) { if (q.type === "music" && !music) return false; if (q.adultsOnly && !adult) return false; return q.groups.some(function (g) { return gs.indexOf(g) >= 0; }); });
+    var gen = currentGenres();
+    var pool = POOL.filter(function (q) { if (q.type === "music" && (!music || (gen && gen.indexOf(q.genreId) < 0))) return false; if (q.adultsOnly && !adult) return false; return q.groups.some(function (g) { return gs.indexOf(g) >= 0; }); });
     if (!pool.length) pool = POOL.filter(function (q) { return (q.type !== "music" || music) && !(q.adultsOnly && !adult); });
     return pool;
   }
@@ -263,7 +296,7 @@
   function prepareMusic(t) {
     var tracks = (window.CONTENT_MUSIC && window.CONTENT_MUSIC.tracks) || [];
     var form = weightedPick({ title: 0.4, artist: 0.35, year: 0.25 });
-    var out = { id: t.id, type: "music", level: t.level, cat: "Music", form: form, prompt: null, preview: t.preview, trackId: t.trackId, artist: t.artist, title: t.title, year: t.year, fact: t.artist + " \u2013 " + t.title + " (" + t.year + ")" };
+    var out = { id: t.id, type: "music", level: t.level, cat: "Music", form: form, prompt: null, preview: t.preview, trackId: t.trackId, artist: t.artist, title: t.title, year: t.year, genreId: t.genreId, fact: t.artist + " \u2013 " + t.title + (t.yearKind === "no1" ? " (UK number one, " + t.year + ")" : " (" + t.year + ")") };
     function others(field) {
       var same = tracks.filter(function (x) { return x.id !== t.id && x[field] !== t[field] && Math.abs(x.decade - t.decade) <= 10; });
       if (same.length < 3) same = tracks.filter(function (x) { return x.id !== t.id && x[field] !== t[field]; });
@@ -274,7 +307,7 @@
     if (form === "title") { out.q = "Name this song."; var o1 = shuffle([t.title].concat(others("title"))); out.options = o1; out.answer = o1.indexOf(t.title); }
     else if (form === "artist") { out.q = "Who is this by?"; var o2 = shuffle([t.artist].concat(others("artist"))); out.options = o2; out.answer = o2.indexOf(t.artist); }
     else {
-      out.q = "Which year was this released?";
+      out.q = t.yearKind === "no1" ? "Which year did this reach number one in the UK?" : "Which year was this released?";
       var offs = shuffle([-7, -5, -3, -2, 2, 3, 5, 7]).slice(0, 3);
       var years = [t.year].concat(offs.map(function (o) { return t.year + o; })).sort(function (a, b) { return a - b; });
       out.options = years.map(String); out.answer = years.indexOf(t.year); out.keepOrder = true;
@@ -320,7 +353,7 @@
   }
   function btn(label, onClick, cls, attrs) {
     var b = el("button", Object.assign({ class: "btn " + (cls || ""), type: "button" }, attrs || {}), [label]);
-    b.addEventListener("click", function (ev) { Sounds.unlock(); Sounds.tap(); Native.haptic("light"); onClick(ev, b); });
+    b.addEventListener("click", function (ev) { Sounds.unlock(); Clip.unlock(); Sounds.tap(); Native.haptic("light"); onClick(ev, b); });
     return b;
   }
   function show(screenEl) { Native.stopSpeaking(); Clip.stop(); app.innerHTML = ""; app.appendChild(screenEl); app.scrollTop = 0; }
@@ -538,9 +571,11 @@
   }
 
   function isSolo() { return players.length === 1; }
+  function soloLength() { return [10, 20, 50, 100].indexOf(gameOpts.soloLength) >= 0 ? gameOpts.soloLength : 20; }
   function optionSegs(container, onChange) {
     if (!isSolo()) container.appendChild(seg("How to play", gameOpts.mode, [{ label: "Turn by turn", value: "shared", sub: "Same question for all, reveal together" }, { label: "Classic", value: "classic", sub: "Own question, instant answer" }], function (v) { gameOpts.mode = v; save("zing.gameOpts", gameOpts); onChange(); }));
-    container.appendChild(seg("Game length", gameOpts.length, [{ label: "Quick", value: 5, sub: "5 rounds" }, { label: "Normal", value: 8, sub: "8 rounds" }, { label: "Long", value: 12, sub: "12 rounds" }], function (v) { gameOpts.length = v; save("zing.gameOpts", gameOpts); onChange(); }));
+    if (isSolo()) container.appendChild(seg("How many questions", soloLength(), [{ label: "10", value: 10 }, { label: "20", value: 20 }, { label: "50", value: 50 }, { label: "100", value: 100 }], function (v) { gameOpts.soloLength = v; save("zing.gameOpts", gameOpts); onChange(); }));
+    else container.appendChild(seg("Game length", gameOpts.length, [{ label: "Quick", value: 5, sub: "5 rounds" }, { label: "Normal", value: 8, sub: "8 rounds" }, { label: "Long", value: 12, sub: "12 rounds" }], function (v) { gameOpts.length = v; save("zing.gameOpts", gameOpts); onChange(); }));
     container.appendChild(seg("Timer", gameOpts.timer, [{ label: "Relaxed", value: 0, sub: "No timer" }, { label: "Gentle", value: 25, sub: "25 seconds" }, { label: "Speedy", value: 12, sub: "12 seconds" }], function (v) { gameOpts.timer = v; save("zing.gameOpts", gameOpts); onChange(); }));
   }
 
@@ -549,15 +584,18 @@
     POOL.forEach(function (q) { if (q.type === "music" && !music) return; q.groups.forEach(function (g) { counts[g] = (counts[g] || 0) + 1; }); });
     return counts;
   }
-  function catsSummary(cats) {
+  function catsSummary(cats, genres) {
     var sel = cats || defaultGroups();
     var all = defaultGroups();
-    if (sel.length === all.length && all.every(function (g) { return sel.indexOf(g) >= 0; })) return "All categories";
-    if (sel.length <= 3) return sel.map(function (id) { var g = GROUPS.filter(function (x) { return x.id === id; })[0]; return g ? g.ic + " " + g.name : id; }).join(", ");
-    return sel.length + " categories chosen";
+    var gtxt = (genres && sel.indexOf("music") >= 0) ? " · " + genres.length + (genres.length === 1 ? " genre" : " genres") : "";
+    if (sel.length === all.length && all.every(function (g) { return sel.indexOf(g) >= 0; })) return "All categories" + gtxt;
+    if (sel.length <= 3) return sel.map(function (id) { var g = GROUPS.filter(function (x) { return x.id === id; })[0]; return g ? g.ic + " " + g.name : id; }).join(", ") + gtxt;
+    return sel.length + " categories chosen" + gtxt;
   }
-  function screenCategories(current, onDone) {
+  function genreCounts() { var c = {}; POOL.forEach(function (q) { if (q.type === "music") c[q.genreId] = (c[q.genreId] || 0) + 1; }); return c; }
+  function screenCategories(current, onDone, genres, onGenres) {
     var sel = (current || defaultGroups()).slice();
+    var gsel = genres ? genres.slice() : GENRES.map(function (g) { return g.id; });
     var counts = groupCounts();
     var s = el("section", { class: "screen", "aria-label": "Categories" });
     s.appendChild(topbar(btn("‹ Back", function () { onDone(sel); }, "ghost slim"), "Categories"));
@@ -581,22 +619,53 @@
     var eras = el("div", { class: "cat-grid cat-eras" });
     GROUPS.filter(function (g) { return g.era; }).forEach(function (g) { eras.appendChild(chip(g)); });
     s.appendChild(el("div", { class: "setting" }, [el("span", { class: "label", text: "Eras (news, events and music by decade)" }), eras]));
+    if (sel.indexOf("music") >= 0 && onGenres) {
+      var gc = genreCounts();
+      var gwrap = el("div", { class: "setting" });
+      gwrap.appendChild(el("span", { class: "label", text: "Music genres (all on unless you untick some)" }));
+      var grow = el("div", { class: "btn-row" });
+      grow.appendChild(btn("All genres", function () { onGenres(null); show(screenCategories(sel, onDone, null, onGenres)); }, "ghost slim"));
+      gwrap.appendChild(grow);
+      var ggrid = el("div", { class: "cat-grid" });
+      GENRES.forEach(function (g) {
+        if (!gc[g.id]) return;
+        var on = gsel.indexOf(g.id) >= 0;
+        var b = el("button", { class: "cat-chip", type: "button", "aria-pressed": String(on) });
+        b.appendChild(el("span", { class: "ic", text: g.ic }));
+        b.appendChild(el("span", { class: "n" }, [g.name, el("span", { class: "count", text: " · " + gc[g.id] })]));
+        b.addEventListener("click", function () {
+          Sounds.unlock(); Sounds.tap(); Native.haptic("light");
+          if (on) gsel = gsel.filter(function (x) { return x !== g.id; }); else gsel.push(g.id);
+          var allOn = GENRES.every(function (x) { return !gc[x.id] || gsel.indexOf(x.id) >= 0; });
+          onGenres(allOn ? null : gsel.slice());
+          show(screenCategories(sel, onDone, allOn ? null : gsel.slice(), onGenres));
+        });
+        ggrid.appendChild(b);
+      });
+      gwrap.appendChild(ggrid);
+      s.appendChild(gwrap);
+    }
     s.appendChild(el("div", { class: "grow" }));
     s.appendChild(btn(sel.length ? "Done  ›" : "Pick at least one", function () { onDone(sel); }, "primary", { disabled: sel.length ? null : "true" }));
     return s;
   }
-  function categoryRow(cats, onPick) {
+  function categoryRow(cats, onPick, genres) {
     var wrap = el("div", { class: "setting" });
     wrap.appendChild(el("span", { class: "label", text: "Categories" }));
-    wrap.appendChild(btn("🗂  " + catsSummary(cats) + "  ›", onPick, ""));
+    wrap.appendChild(btn("🗂  " + catsSummary(cats, genres) + "  ›", onPick, ""));
     return wrap;
   }
 
   function screenSetup() {
     var s = el("section", { class: "screen", "aria-label": "Game setup" });
     s.appendChild(topbar(btn("‹ Players", function () { show(screenPlayers()); }, "ghost slim"), isSolo() ? "Solo game" : "Game setup"));
-    if (isSolo()) { var best = (load("zing.best", {}))[gameOpts.length]; s.appendChild(el("div", { class: "card" }, [el("h3", { text: players[0].avatar + " " + players[0].name + " vs the quiz" }), el("p", { class: "muted", text: best ? "Best score for " + gameOpts.length + " rounds: " + best + " points." : "No best score yet for " + gameOpts.length + " rounds. Set one!" })])); }
-    s.appendChild(categoryRow(gameOpts.cats, function () { show(screenCategories(gameOpts.cats, function (sel) { gameOpts.cats = sel; save("zing.gameOpts", gameOpts); show(screenSetup()); })); }));
+    if (isSolo()) {
+      var best = (load("zing.best", {}))[soloLength()];
+      var card = el("div", { class: "card" }, [el("h3", { text: players[0].avatar + " " + players[0].name + " vs the quiz" }), el("p", { class: "muted", text: best ? "Best score for " + soloLength() + " questions: " + best + " points." : "No best score yet for " + soloLength() + " questions. Set one!" })]);
+      card.appendChild(btn("📊  My scores by category", function () { show(screenStats()); }, "ghost slim"));
+      s.appendChild(card);
+    }
+    s.appendChild(categoryRow(gameOpts.cats, function () { show(screenCategories(gameOpts.cats, function (sel) { gameOpts.cats = sel; save("zing.gameOpts", gameOpts); show(screenSetup()); }, gameOpts.genres, function (g) { gameOpts.genres = g; save("zing.gameOpts", gameOpts); })); }, gameOpts.genres));
     optionSegs(s, function () { show(screenSetup()); });
     var strip = el("div", { class: "score-strip" });
     players.forEach(function (p) { strip.appendChild(el("span", { class: "chip" }, [el("span", { class: "avatar", text: p.avatar }), p.name + (gameOpts.teams && teamOf(p.team) ? " " + teamOf(p.team).emoji : "")])); });
@@ -604,6 +673,7 @@
     s.appendChild(el("div", { class: "grow" }));
     s.appendChild(btn("Start game  ⚡", function () {
       selectedGroups = (gameOpts.cats && gameOpts.cats.length) ? gameOpts.cats.slice() : null;
+      selectedGenres = gameOpts.genres ? gameOpts.genres.slice() : null;
       if (gameOpts.mode === "classic" || isSolo()) startClassic();
       else startSharedLocal();
     }, "primary"));
@@ -716,7 +786,11 @@
       box.appendChild(playBtn); box.appendChild(meta);
       card.appendChild(box);
       playBtn.addEventListener("click", function () { Sounds.unlock(); if (Clip.src) Clip.toggle(); else startClip(); });
-      Clip.onProgress = function (frac, paused) { barFill.style.width = Math.round(frac * 100) + "%"; box.classList.toggle("playing", !paused); playBtn.textContent = paused ? "▶" : "❚❚"; };
+      Clip.onProgress = function (frac, paused) {
+        barFill.style.width = Math.round(frac * 100) + "%"; box.classList.toggle("playing", !paused);
+        playBtn.textContent = (!paused && Clip.loading) ? "…" : paused ? "▶" : "❚❚";
+        meta.firstChild.textContent = (!paused && Clip.loading) ? "Loading the clip…" : paused ? "Tap to play the clip" : "Playing…";
+      };
       Clip.onEnd = function () { box.classList.remove("playing"); playBtn.textContent = "↻"; };
       Clip.onError = function () {
         refreshPreview(q).then(function (url) { Clip.onError = function () { clipFailed(); }; Clip.play(url); }).catch(clipFailed);
@@ -727,7 +801,7 @@
         meta.children[1].textContent = "Check the internet connection, or skip this one.";
         if (!skipBtn) { skipBtn = btn("Skip this question", function () { answer(-2); }, "ghost slim"); card.appendChild(skipBtn); }
       };
-      setTimeout(startClip, 350);
+      setTimeout(startClip, 60);
     }
     var speakText = (q.type === "music" || q.type === "face" || q.type === "dingbat") ? q.q : q.q + (q.type === "tf" ? " True or false?" : ". " + q.options.map(function (o, i) { return LETTERS[i] + ". " + o; }).join(". "));
     var speakBtn = el("button", { class: "speak", type: "button", "aria-label": "Read the question aloud" }, ["🔊 ", "Read it to me"]);
@@ -791,8 +865,46 @@
   /* ================= CLASSIC MODE (one phone, own questions, instant reveal) ================= */
   var G = null;
   function startClassic() {
-    G = { players: players.map(function (p) { return Object.assign({}, p, { score: 0, streak: 0, correct: 0, lastCat: null }); }), round: 0, turn: 0, total: gameOpts.length, used: {}, solo: players.length === 1 };
+    var solo = players.length === 1;
+    G = { players: players.map(function (p) { return Object.assign({}, p, { score: 0, streak: 0, correct: 0, lastCat: null }); }), round: 0, turn: 0, total: solo ? soloLength() : gameOpts.length, used: {}, solo: solo };
     show(classicPass());
+  }
+  // Solo stats: how the player is doing in each category, kept on this phone.
+  function primaryGroup(q) { for (var i = 0; i < q.groups.length; i++) { if (!/^e\d{4}$/.test(q.groups[i])) return q.groups[i]; } return q.groups[0] || "general"; }
+  function recordStat(q, correct, pts) {
+    var stats = load("zing.stats", {});
+    var g = primaryGroup(q);
+    var row = stats[g] || { asked: 0, right: 0, pts: 0 };
+    row.asked += 1; if (correct) row.right += 1; row.pts += pts || 0;
+    stats[g] = row;
+    var tot = stats._all || { asked: 0, right: 0, pts: 0 };
+    tot.asked += 1; if (correct) tot.right += 1; tot.pts += pts || 0; stats._all = tot;
+    save("zing.stats", stats);
+  }
+  function screenStats() {
+    var stats = load("zing.stats", {});
+    var s = el("section", { class: "screen", "aria-label": "My scores by category" });
+    s.appendChild(topbar(btn("‹ Back", function () { show(screenSetup()); }, "ghost slim"), "My scores"));
+    var tot = stats._all;
+    if (!tot || !tot.asked) {
+      s.appendChild(el("div", { class: "card" }, [el("h3", { text: "Nothing yet" }), el("p", { class: "muted", text: "Play a solo game and your results by category will build up here." })]));
+      return s;
+    }
+    s.appendChild(el("div", { class: "card" }, [el("h3", { text: "Overall: " + Math.round(100 * tot.right / tot.asked) + "% right" }), el("p", { class: "muted", text: tot.right + " of " + tot.asked + " questions right · " + tot.pts + " points earned in solo games" })]));
+    var board = el("div", { class: "board" });
+    var rows = GROUPS.filter(function (g) { return stats[g.id] && stats[g.id].asked; }).map(function (g) { var r = stats[g.id]; return { g: g, r: r, pct: r.right / r.asked }; }).sort(function (a, b) { return b.pct - a.pct; });
+    rows.forEach(function (x, i) {
+      var row = el("div", { class: "bar-row" + (i === 0 ? " leader" : "") });
+      row.appendChild(el("div", { class: "avatar", text: x.g.ic }));
+      var fill = el("div", { class: "fill" }); fill.style.width = Math.max(6, Math.round(100 * x.pct)) + "%";
+      row.appendChild(el("div", { class: "track" }, [fill, el("span", { class: "nm", text: x.g.name + " · " + x.r.right + "/" + x.r.asked })]));
+      row.appendChild(el("div", { class: "pts", text: Math.round(100 * x.pct) + "%" }));
+      board.appendChild(row);
+    });
+    s.appendChild(board);
+    if (rows.length) s.appendChild(el("p", { class: "muted small center", text: "Best: " + rows[0].g.name + ". Needs work: " + rows[rows.length - 1].g.name + "." }));
+    s.appendChild(btn("Reset my scores", function () { save("zing.stats", {}); toast("Scores reset"); show(screenStats()); }, "ghost"));
+    return s;
   }
   function classicPass() {
     var p = G.players[G.turn];
@@ -823,12 +935,14 @@
   }
   function classicQuestion() {
     var p = G.players[G.turn];
-    var q = prepareQuestion(pickQuestion(p, G.used, p.lastCat));
+    var raw = pickQuestion(p, G.used, p.lastCat);
+    var q = prepareQuestion(raw); q.groups = raw.groups;
     G.used[q.id] = true; seen[q.id] = true; save("zing.seen", seen); p.lastCat = q.cat;
     questionScreen(p, q, "R" + (G.round + 1) + "/" + G.total + " · " + p.score + " pts", true, function (r) {
       var pts = 0, bonus = 0, streakBonus = 0;
       if (r.correct) { pts = 10; bonus = speedBonus(r.elapsed); p.streak += 1; p.correct += 1; if (p.streak >= 3) streakBonus = 5; p.score += pts + bonus + streakBonus; }
       else if (!r.skipped) p.streak = 0;
+      if (G.solo && !r.skipped) recordStat(q, r.correct, pts + bonus + streakBonus);
       if (r.correct) { Sounds.correct(); Native.haptic("success"); confettiBurst(p.streak >= 3 ? 220 : 120); if (streakBonus) setTimeout(Sounds.streak, 500); }
       else if (r.skipped) { Sounds.whoosh(); }
       else { if (r.timedOut) Sounds.timeUp(); else Sounds.wrong(); Native.haptic("error"); }
@@ -856,7 +970,8 @@
     s.appendChild(el("div", { class: "crown", "aria-hidden": "true", text: isBest ? "🏆" : p.correct >= G.total * 0.7 ? "🌟" : "💪" }));
     s.appendChild(el("div", { class: "winner-line", text: p.score + " points" }));
     s.appendChild(el("p", { class: "lead", text: p.correct + " of " + G.total + " right" }));
-    s.appendChild(el("p", { class: "muted", text: isBest ? (prev ? "New best! Your old best was " + prev + "." : "That's your first best score for " + G.total + " rounds.") : "Your best for " + G.total + " rounds is " + prev + "." }));
+    s.appendChild(el("p", { class: "muted", text: isBest ? (prev ? "New best! Your old best was " + prev + "." : "That's your first best score for " + G.total + " questions.") : "Your best for " + G.total + " questions is " + prev + "." }));
+    s.appendChild(btn("📊  My scores by category", function () { show(screenStats()); }, "ghost slim"));
     s.appendChild(el("div", { class: "grow" }));
     var row = el("div", { class: "btn-row" });
     row.appendChild(btn("Play again", startClassic, "primary"));
@@ -1147,7 +1262,7 @@
   function startHosting(name) {
     Transport.mode = "mp"; Transport.isHost = true; Transport.hostPeer = null;
     Client.reset(); Client.meName = name;
-    Host.init({ length: gameOpts.length, timer: gameOpts.timer, teams: gameOpts.teams, cats: gameOpts.cats });
+    Host.init({ length: gameOpts.length, timer: gameOpts.timer, teams: gameOpts.teams, cats: gameOpts.cats, genres: gameOpts.genres });
     Net.onEvent = function (ev) {
       if (ev.kind === "ready") { Client.me = ev.me; Host.setPlayers(Client.me, name, players); Host.lobby(); show(hostLobby()); }
       if (ev.kind === "peers") {
@@ -1185,12 +1300,12 @@
     s.appendChild(btn("＋ Add a player on this phone", function () { show(screenAddPlayer(function (p) { players.push(p); save("zing.players", players); Host.setPlayers(Client.me, Client.meName, players); Host.lobby(); show(hostLobby()); }, function () { show(hostLobby()); }, all)); }, ""));
     s.appendChild(toggleRow("Play in teams", "Tap a badge to change a player's team.", S.options.teams, function (v) { S.options.teams = v; gameOpts.teams = v; save("zing.gameOpts", gameOpts); if (v) { autoTeams(all); autoTeams(players); save("zing.players", players); } Host.lobby(); show(hostLobby()); }));
     var optsWrap = el("div", { class: "stack" });
-    optsWrap.appendChild(categoryRow(S.options.cats, function () { currentScreen = ""; show(screenCategories(S.options.cats, function (sel) { S.options.cats = sel; gameOpts.cats = sel; save("zing.gameOpts", gameOpts); Host.lobby(); show(hostLobby()); })); }));
+    optsWrap.appendChild(categoryRow(S.options.cats, function () { currentScreen = ""; show(screenCategories(S.options.cats, function (sel) { S.options.cats = sel; gameOpts.cats = sel; save("zing.gameOpts", gameOpts); Host.lobby(); show(hostLobby()); }, S.options.genres, function (g) { S.options.genres = g; gameOpts.genres = g; save("zing.gameOpts", gameOpts); })); }, S.options.genres));
     optsWrap.appendChild(seg("Game length", S.options.length, [{ label: "Quick", value: 5, sub: "5 rounds" }, { label: "Normal", value: 8, sub: "8 rounds" }, { label: "Long", value: 12, sub: "12 rounds" }], function (v) { S.options.length = v; S.total = v; gameOpts.length = v; save("zing.gameOpts", gameOpts); Host.lobby(); show(hostLobby()); }));
     optsWrap.appendChild(seg("Timer", S.options.timer, [{ label: "Relaxed", value: 0, sub: "No timer" }, { label: "Gentle", value: 25, sub: "25 seconds" }, { label: "Speedy", value: 12, sub: "12 seconds" }], function (v) { S.options.timer = v; gameOpts.timer = v; save("zing.gameOpts", gameOpts); Host.lobby(); show(hostLobby()); }));
     s.appendChild(optsWrap);
     var ok = all.length >= 2 && (!S.options.teams || (all.every(function (p) { return !!p.team; }) && Object.keys(all.reduce(function (m, p) { m[p.team] = 1; return m; }, {})).length >= 2));
-    s.appendChild(btn("Start game  ⚡", function () { currentScreen = ""; gameOpts.length = S.options.length; gameOpts.timer = S.options.timer; gameOpts.teams = S.options.teams; selectedGroups = (S.options.cats && S.options.cats.length) ? S.options.cats.slice() : null; Host.start(); }, "primary", { disabled: ok ? null : "true" }));
+    s.appendChild(btn("Start game  ⚡", function () { currentScreen = ""; gameOpts.length = S.options.length; gameOpts.timer = S.options.timer; gameOpts.teams = S.options.teams; selectedGroups = (S.options.cats && S.options.cats.length) ? S.options.cats.slice() : null; selectedGenres = S.options.genres ? S.options.genres.slice() : null; Host.start(); }, "primary", { disabled: ok ? null : "true" }));
     return s;
   }
 
@@ -1280,6 +1395,6 @@
   applySettings();
   document.addEventListener("touchstart", function () { Sounds.unlock(); }, { once: true, passive: true });
   document.addEventListener("click", function () { Sounds.unlock(); }, { once: true });
-  window.ZING = { pool: POOL, groups: GROUPS, setGroups: function (g) { selectedGroups = g; }, activePool: activePool, prepare: prepareQuestion, musicAvailable: musicAvailable, pick: pickQuestion, pickAtLevel: pickQuestionAtLevel, bands: BANDS, players: function () { return players; }, host: Host, client: Client, transport: Transport };
+  window.ZING = { pool: POOL, groups: GROUPS, genres: GENRES, setGenres: function (g) { selectedGenres = g; }, clip: Clip, setGroups: function (g) { selectedGroups = g; }, activePool: activePool, prepare: prepareQuestion, musicAvailable: musicAvailable, pick: pickQuestion, pickAtLevel: pickQuestionAtLevel, bands: BANDS, players: function () { return players; }, host: Host, client: Client, transport: Transport };
   show(screenHome());
 })();

@@ -51,20 +51,22 @@ const assert = require('assert');
   await page.click('text=Start game');
 
   for (let round = 1; round <= 5; round++) {
-    const seenQ = {};
+    const seenQ = {}, seenLevel = {};
     for (let turn = 0; turn < 3; turn++) {
       await page.waitForSelector('.pass-hero');
       const name = (await page.textContent('.pass-hero .name')).trim();
       await page.click('.btn.primary');
       await page.waitForSelector('.answers .ans');
       seenQ[name] = (await page.evaluate(() => (document.querySelector('.q-prompt') || {}).textContent || '')) + '|' + await page.textContent('.q-text');
+      seenLevel[name] = (await page.textContent('.q-meta .cat:last-child')).split('·').pop().trim();
       await page.click('.answers .ans >> nth=0');
       await page.waitForSelector('.result');
       assert.strictEqual(await page.locator('.ans.correct').count(), 0, 'turn by turn must not reveal the answer early');
       await page.click('.result .btn.primary');
     }
     assert.strictEqual(seenQ['Nana'], seenQ['Dad'], 'the two grown-ups should get the same question in a round');
-    assert.notStrictEqual(seenQ['Ellie'], seenQ['Nana'], 'the kid should get a different (kid) question');
+    // a kid and a grown-up share a question only when both happened to land on the same (Family) level
+    assert(seenQ['Ellie'] !== seenQ['Nana'] || seenLevel['Ellie'] === seenLevel['Nana'], 'the kid should get a different question unless both are on the Family level');
     await page.waitForSelector('.reveal-answer');
     assert(await page.locator('.who-chip').count() >= 3, 'reveal should list every player');
     assert(await page.locator('.bar-row').count() >= 2, 'team scoreboard should show the teams');
@@ -116,7 +118,19 @@ const assert = require('assert');
   assert(music.n >= 100, 'expected at least 100 music tracks, got ' + music.n);
   assert.strictEqual(music.bad, 0, 'bad music questions generated');
   assert(music.forms.title && music.forms.artist && music.forms.year, 'all three music forms should occur: ' + JSON.stringify(music.forms));
-  assert(music.sixtiesNineties / music.n > 0.65, 'music should be weighted to the 60s and 90s');
+  // genres: picking one genre restricts music to it; null means all
+  const genreCheck = await page.evaluate(() => {
+    window.ZING.setGroups(['music']);
+    const all = window.ZING.activePool('adult').filter(q => q.type === 'music');
+    const ids = [...new Set(all.map(q => q.genreId))];
+    window.ZING.setGenres([ids[0]]);
+    const one = window.ZING.activePool('adult').filter(q => q.type === 'music');
+    const ok = ids.length < 2 ? true : (one.length > 0 && one.every(q => q.genreId === ids[0]) && one.length < all.length);
+    window.ZING.setGenres(null); window.ZING.setGroups(null);
+    return { ok, genres: ids.length, all: all.length };
+  });
+  assert(genreCheck.ok, 'genre filter should restrict music: ' + JSON.stringify(genreCheck));
+  console.log('Genres:', genreCheck.genres, 'across', genreCheck.all, 'tracks');
   console.log('Music:', music.n, 'tracks, forms', JSON.stringify(music.forms));
 
   /* ---------- Fastest finger first (linked-phone scoring), simulated on one page ---------- */
@@ -215,11 +229,11 @@ const assert = require('assert');
   await page.waitForSelector('text=Solo mode');
   await page.click('text=Play solo');
   await page.waitForSelector('text=Solo game');
-  await page.click('text=Quick');
+  await page.click('.seg >> text="10"');
   await page.click('text=Start game');
   await page.waitForSelector('.pass-hero');
   await page.click('.btn.primary');
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     await page.waitForSelector('.answers .ans');
     assert.strictEqual(await page.locator('.pass-hero').count(), 0, 'solo mode should not show pass screens between questions');
     await page.click('.answers .ans >> nth=0');
@@ -230,8 +244,13 @@ const assert = require('assert');
   const soloLine = await page.textContent('.winner-line');
   assert(/points/.test(soloLine), 'solo final should show a score: ' + soloLine);
   const best = await page.evaluate(() => JSON.parse(localStorage.getItem('zing.best') || '{}'));
-  assert(best[5] !== undefined, 'a best score should be saved');
-  await page.click('text=Home');
+  assert(best[10] !== undefined, 'a best score should be saved');
+  const stats = await page.evaluate(() => JSON.parse(localStorage.getItem('zing.stats') || '{}'));
+  assert(stats._all && stats._all.asked === 10, 'solo stats should record 10 questions: ' + JSON.stringify(stats._all));
+  await page.click('text=My scores by category');
+  await page.waitForSelector('.bar-row');
+  await page.click('text=Back');
+  await page.waitForSelector('text=Solo game');
   // restore the three players for the settings check below
   await page.evaluate(() => { localStorage.setItem('zing.players', JSON.stringify([{ id: 'a', name: 'Nana', avatar: '🦊', band: 'adult', team: null }, { id: 'b', name: 'Ellie', avatar: '🐼', band: 'kid', team: null }, { id: 'c', name: 'Dad', avatar: '🦄', band: 'adult', team: null }])); });
   await page.reload(); await page.waitForSelector('.logo');

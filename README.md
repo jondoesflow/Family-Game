@@ -6,8 +6,9 @@ Each player picks an age group once. The game then pitches every question at tha
 so a child and a grandparent compete on the same scoreboard and both have a fair shot.
 
 **Question types** (picked at random every turn): multiple choice, emoji puzzles (films, flags,
-places), true or false, and music rounds (a 30 second clip plays; name the song, the artist or the year,
-weighted to the 1960s and 1990s). The Kid level is hand-written for 8 to 12 year olds. The Family,
+places), true or false, and music rounds (a 30 second clip plays; name the song, the artist or the year).
+The music bank is every UK number one since 1952 plus a hand-picked set of classics, and the host can narrow
+it to genres (pop, rock, dance, soul, hip-hop, indie, country, reggae, soundtracks, jazz and classical, Christmas). The Kid level is hand-written for 8 to 12 year olds. The Family,
 Grown-up and Expert levels add several thousand Trivial Pursuit-style general knowledge questions
 imported from the Open Trivia Database.
 Funny synthesised noises play for right and wrong answers (cheers, boings, sad trombones).
@@ -23,6 +24,8 @@ the 2020s (news, events and music by decade).
 * **Turn by turn** (default): every round, everyone in the same age group gets the same question. Answers are
   locked in without showing the result, then the round is revealed together with who got it right.
 * **Classic**: each player gets their own question and sees the answer straight away.
+* **Solo**: one player, 10 to 100 questions straight through, a personal best per length, and a scoreboard of
+  how they are doing in each category, all kept on the phone.
 * **Teams**: put players in Red, Blue, Green or Yellow. Team totals decide the winner.
 * **Link phones** (iOS app only): one phone hosts, others join over Bluetooth and peer-to-peer Wi-Fi using
   Apple's Multipeer Connectivity. No internet or router is needed. Each phone holds its own players, everyone

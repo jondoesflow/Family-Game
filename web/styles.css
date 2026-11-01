@@ -399,3 +399,7 @@ html[data-motion="reduce"] .face-wrap.blur img { transition-duration: 4s; }
 .face-wrap .label { position: absolute; left: 10px; bottom: 10px; background: rgba(30, 27, 58, 0.75); color: #fff; font-size: 0.8rem; padding: 4px 8px; border-radius: 8px; }
 .credit { font-size: 0.75rem; color: var(--ink-soft); margin-top: 4px; }
 .credit.light { color: var(--fg-dim); }
+
+/* Ghost buttons placed inside a cream card need dark text */
+.card .btn.ghost { color: var(--ink); background: rgba(30, 27, 58, 0.06); border-color: rgba(30, 27, 58, 0.18); }
+.card .btn.ghost.slim { margin-top: 10px; }

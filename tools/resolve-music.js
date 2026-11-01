@@ -1,43 +1,59 @@
-// Looks up each curated track on the iTunes Search API (free, no key) to get a 30-second preview clip,
-// then writes web/content-music.js. Years come from the curated list (iTunes dates are often reissues).
-// Run: node tools/resolve-music.js   (about 10 minutes: the API is rate limited to ~20 requests a minute)
+// Matches every track in tools/music-list.json (hand-curated, original release years) and
+// tools/music-list-uk.json (UK number ones, chart years) to a 30-second preview clip on the
+// iTunes Search API, records Apple's genre, and writes web/content-music.js.
+// Results are cached in tools/music-cache.json so re-runs only look up new tracks.
+// Run: node tools/resolve-music.js   (first full run takes over an hour: ~20 requests a minute)
 const fs = require('fs'); const path = require('path');
-const list = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'music-list.json'), 'utf8'));
+const curated = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'music-list.json'), 'utf8')).map(x => ({ artist: x[0], title: x[1], year: x[2], level: x[3], yearKind: 'release' }));
+const ukPath = path.resolve(__dirname, 'music-list-uk.json');
+const uk = fs.existsSync(ukPath) ? JSON.parse(fs.readFileSync(ukPath, 'utf8')).map(x => ({ artist: x[0], title: x[1], year: x[2], level: x[3] >= 3 ? 2 : 3, yearKind: 'no1', weeks: x[3] })) : [];
+const cachePath = path.resolve(__dirname, 'music-cache.json');
+const cache = fs.existsSync(cachePath) ? JSON.parse(fs.readFileSync(cachePath, 'utf8')) : {};
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const norm = s => String(s).toLowerCase().replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/[^a-z0-9]+/g, ' ').replace(/\b(remastered|remaster|mono|stereo|single version|album version|feat|ft)\b.*$/g, '').trim();
-const normArtist = s => String(s).toLowerCase().replace(/^the /, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const norm = s => String(s).toLowerCase().replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/[^a-z0-9]+/g, ' ').replace(/\b(remastered|remaster|mono|stereo|single version|album version|radio edit|feat|ft)\b.*$/g, '').trim();
+const normArtist = s => String(s).toLowerCase().replace(/\b(featuring|feat\.?|ft\.?|and|&|with|vs\.?|x)\b/g, ' ').replace(/^the /, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const firstArtist = s => normArtist(String(s).split(/\s+(?:featuring|feat\.?|ft\.?|&|and|with|vs\.?|x)\s+/i)[0]);
+
+async function lookup(t) {
+  const key = (t.artist + '|' + t.title).toLowerCase();
+  if (cache[key] !== undefined) return cache[key];
+  let best = null;
+  for (let attempt = 0; attempt < 3 && !best; attempt++) {
+    try {
+      const url = `https://itunes.apple.com/search?term=${encodeURIComponent(t.artist + ' ' + t.title)}&entity=song&country=GB&limit=15`;
+      const r = await fetch(url);
+      if (r.status === 403 || r.status === 429) { console.log('rate limited, waiting'); await sleep(25000); continue; }
+      const d = await r.json();
+      const want = firstArtist(t.artist);
+      const cands = (d.results || []).filter(x => x.previewUrl && x.kind === 'song')
+        .filter(x => { const a = normArtist(x.artistName); return a.includes(want) || want.includes(a) || firstArtist(x.artistName) === want; })
+        .filter(x => { const a = norm(x.trackName), w = norm(t.title); return a === w || a.startsWith(w) || w.startsWith(a); })
+        .map(x => ({ x, score: (norm(x.trackName) === norm(t.title) ? 0 : 1) + (/greatest|best of|hits|collection|anthology|essential|ultimate|now that|karaoke|tribute|live|cover|in the style/i.test(x.collectionName + ' ' + x.trackName + ' ' + x.artistName) ? 2 : 0) + Math.abs(new Date(x.releaseDate).getFullYear() - t.year) / 50 }))
+        .sort((a, b) => a.score - b.score);
+      if (cands.length) best = cands[0].x; else break;
+    } catch (e) { console.log('error', e.message); await sleep(5000); }
+  }
+  cache[key] = best ? { trackId: best.trackId, preview: best.previewUrl, genre: best.primaryGenreName || 'Pop', itYear: new Date(best.releaseDate).getFullYear(), art: best.artworkUrl100 || null } : null;
+  await sleep(3100);
+  return cache[key];
+}
 
 (async () => {
-  const out = [], flagged = [];
-  for (let i = 0; i < list.length; i++) {
-    const [artist, title, year, level] = list[i];
-    let best = null;
-    for (let attempt = 0; attempt < 3 && !best; attempt++) {
-      try {
-        const url = `https://itunes.apple.com/search?term=${encodeURIComponent(artist + ' ' + title)}&entity=song&country=GB&limit=15`;
-        const r = await fetch(url);
-        if (r.status === 403 || r.status === 429) { console.log('rate limited, waiting'); await sleep(20000); continue; }
-        const d = await r.json();
-        const cands = (d.results || []).filter(x => x.previewUrl && x.kind === 'song')
-          .filter(x => { const a = normArtist(x.artistName), w = normArtist(artist); return a.includes(w) || w.includes(a); })
-          .filter(x => { const t = norm(x.trackName), w = norm(title); return t === w || t.startsWith(w) || w.startsWith(t); })
-          .map(x => ({ x, score: (norm(x.trackName) === norm(title) ? 0 : 1) + (/greatest|best of|hits|collection|anthology|essential|ultimate|now that|karaoke|tribute|live/i.test(x.collectionName + ' ' + x.trackName) ? 2 : 0) + Math.abs(new Date(x.releaseDate).getFullYear() - year) / 50 }))
-          .sort((a, b) => a.score - b.score);
-        if (cands.length) best = cands[0].x;
-        else { console.log(`no match: ${artist} - ${title}`); break; }
-      } catch (e) { console.log('error', e.message); await sleep(5000); }
-    }
-    if (best) {
-      const itYear = new Date(best.releaseDate).getFullYear();
-      if (Math.abs(itYear - year) > 1) flagged.push(`${artist} - ${title}: curated ${year}, iTunes ${itYear} (${best.collectionName})`);
-      out.push({ id: 'm' + (out.length + 1), level, cat: 'Music', artist, title, year, decade: Math.floor(year / 10) * 10, trackId: best.trackId, preview: best.previewUrl, art: best.artworkUrl100 || null });
-    }
-    if ((i + 1) % 20 === 0) console.log(`resolved ${out.length}/${i + 1}`);
-    await sleep(3400);
+  const all = curated.concat(uk);
+  const out = []; const seenKey = new Set(); let done = 0, misses = 0;
+  for (const t of all) {
+    const key = (normArtist(t.artist) + '|' + norm(t.title));
+    if (seenKey.has(key)) continue; seenKey.add(key);
+    const r = await lookup(t);
+    done++;
+    if (done % 25 === 0) { fs.writeFileSync(cachePath, JSON.stringify(cache)); console.log(`looked up ${done}/${all.length}, matched ${out.length}`); }
+    if (!r) { misses++; continue; }
+    out.push({ id: 'm' + (out.length + 1), level: t.level, cat: 'Music', artist: t.artist, title: t.title, year: t.year, yearKind: t.yearKind, decade: Math.floor(t.year / 10) * 10, genre: r.genre, trackId: r.trackId, preview: r.preview });
   }
-  const file = `/* Music questions: 30-second preview clips streamed from Apple's iTunes Search API at play time.\n   Years are the original single release years, curated by hand. Generated by tools/resolve-music.js. */\nwindow.CONTENT_MUSIC = {\ntracks: [\n${out.map(x => JSON.stringify(x)).join(',\n')}\n]\n};\n`;
+  fs.writeFileSync(cachePath, JSON.stringify(cache));
+  const file = `/* Music questions: hand-curated classics plus every UK number one since 1952, each with a 30-second\n   preview clip streamed from Apple's iTunes Search API at play time. yearKind: release (original release\n   year, curated) or no1 (year it reached number one in the UK). Generated by tools/resolve-music.js. */\nwindow.CONTENT_MUSIC = {\ntracks: [\n${out.map(x => JSON.stringify(x)).join(',\n')}\n]\n};\n`;
   fs.writeFileSync(path.resolve(__dirname, '..', 'web/content-music.js'), file);
-  const dec = {}; out.forEach(x => dec[x.decade] = (dec[x.decade] || 0) + 1);
-  console.log(`wrote web/content-music.js: ${out.length} tracks`, dec);
-  if (flagged.length) { console.log('Year mismatches to eyeball (curated year is used):'); flagged.forEach(f => console.log(' - ' + f)); }
+  const dec = {}, gen = {}; out.forEach(x => { dec[x.decade] = (dec[x.decade] || 0) + 1; gen[x.genre] = (gen[x.genre] || 0) + 1; });
+  console.log(`wrote web/content-music.js: ${out.length} tracks (${misses} not found)`, dec);
+  console.log('genres', gen);
 })();
