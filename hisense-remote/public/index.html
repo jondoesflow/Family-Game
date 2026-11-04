@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>TV Remote</title>
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TV Remote">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --panel-2: #1f232c; --line: #2a2f3a;
+    --text: #eef0f4; --muted: #8b92a3; --accent: #4f8cff; --ok: #2ecc71; --warn: #f5a623; --danger: #e5484d;
+    --btn: #262b36; --btn-hi: #343a48; --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.3 -apple-system, "SF Pro Text", system-ui, Segoe UI, Roboto, sans-serif; }
+  body { padding: max(10px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom)); max-width: 440px; margin: 0 auto; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  button { font: inherit; color: inherit; border: 0; background: var(--btn); border-radius: 14px; padding: 0; cursor: pointer; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: transform .06s, background .1s; }
+  button:active { transform: scale(.94); background: var(--btn-hi); }
+  button:disabled { opacity: .45; }
+  button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .top { display: flex; align-items: center; gap: 10px; padding: 6px 2px 12px; }
+  .top h1 { font-size: 17px; font-weight: 600; margin: 0; flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .top h1 span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.on { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+  .dot.warn { background: var(--warn); }
+  .dot.off { background: var(--danger); }
+  .icon-btn { width: 44px; min-height: 44px; border-radius: 12px; background: var(--panel-2); }
+  .status { font-size: 13px; color: var(--muted); padding: 0 2px 10px; min-height: 18px; }
+  .banner { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+  .banner h2 { font-size: 15px; margin: 0 0 6px; }
+  .banner p { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+  .row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .r3 { grid-template-columns: repeat(3, 1fr); }
+  .r4 { grid-template-columns: repeat(4, 1fr); }
+  .r5 { grid-template-columns: repeat(5, 1fr); }
+  .power { background: #3a1d22; color: #ff6b70; }
+  .power:active { background: #52252c; }
+  .pad { position: relative; width: 236px; height: 236px; margin: 6px auto 14px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #2a2f3b, #1a1d25 70%); box-shadow: inset 0 0 0 1px var(--line); }
+  .pad button { position: absolute; background: transparent; border-radius: 0; min-height: 0; width: 80px; height: 64px; color: #c9cfdb; }
+  .pad button:active { background: rgba(255,255,255,.08); transform: none; }
+  .pad .up { top: 4px; left: 78px; } .pad .down { bottom: 4px; left: 78px; }
+  .pad .left { left: 4px; top: 86px; width: 64px; height: 64px; } .pad .right { right: 4px; top: 86px; width: 64px; height: 64px; }
+  .pad .ok { left: 68px; top: 68px; width: 100px; height: 100px; border-radius: 50%; background: var(--btn); font-weight: 700; font-size: 20px; letter-spacing: .5px; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+  .pad .ok:active { background: var(--btn-hi); transform: scale(.95); }
+  .rockers { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; align-items: stretch; }
+  .rocker { background: var(--panel); border-radius: var(--radius); display: flex; flex-direction: column; overflow: hidden; }
+  .rocker button { background: transparent; border-radius: 0; min-height: 60px; }
+  .rocker button:active { background: var(--btn-hi); transform: none; }
+  .rocker .lbl { text-align: center; font-size: 11px; letter-spacing: 1px; color: var(--muted); padding: 2px 0; }
+  .mid { display: grid; gap: 10px; }
+  .label { font-size: 13px; font-weight: 500; }
+  .label small { display: block; font-size: 10px; letter-spacing: 1px; color: var(--muted); }
+  .apps button { min-height: 48px; font-weight: 700; font-size: 13px; }
+  .netflix { background: #3d1013; color: #ff5a5f; } .youtube { background: #3b1414; color: #ff7b7b; } .prime { background: #0f2a3d; color: #5ac8ff; } .disney { background: #141c3d; color: #8ea4ff; }
+  .section { margin-top: 6px; }
+  .section summary { list-style: none; cursor: pointer; color: var(--muted); font-size: 13px; padding: 10px 2px; display: flex; justify-content: space-between; }
+  .section summary::-webkit-details-marker { display: none; }
+  .section[open] summary { color: var(--text); }
+  .colours button { min-height: 34px; border-radius: 10px; }
+  .num button { font-size: 20px; font-weight: 600; }
+  .sheet { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: flex-end; z-index: 10; }
+  .sheet.open { display: flex; }
+  .sheet > div { background: var(--panel); width: 100%; max-width: 440px; margin: 0 auto; border-radius: 22px 22px 0 0; padding: 18px 16px max(22px, env(safe-area-inset-bottom)); max-height: 88vh; overflow: auto; }
+  .sheet h2 { margin: 0 0 12px; font-size: 18px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input { width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-size: 17px; }
+  input:focus { outline: 2px solid var(--accent); }
+  .primary { background: var(--accent); color: #fff; font-weight: 600; }
+  .ghost { background: transparent; border: 1px solid var(--line); }
+  .devices { display: grid; gap: 8px; margin-bottom: 12px; }
+  .devices button { justify-content: flex-start; padding: 10px 14px; text-align: left; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .devices small { color: var(--muted); }
+  .list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #262b36; color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1><i class="dot" id="dot"></i><span id="tvname">Hisense TV</span></h1>
+  <button class="icon-btn" id="btn-wake" title="Wake TV" aria-label="Wake TV"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></button>
+  <button class="icon-btn" id="btn-settings" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+</div>
+<div class="status" id="status">Connecting…</div>
+
+<div class="banner" id="pin-banner" hidden>
+  <h2>Enter the PIN shown on the TV</h2>
+  <p>The TV is asking you to approve this remote. Type the 4 digits on screen.</p>
+  <form id="pin-form" style="display:flex;gap:8px">
+    <input id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="1234" autocomplete="one-time-code" style="flex:1">
+    <button class="primary" type="submit" style="padding:0 18px">Pair</button>
+  </form>
+</div>
+
+<div class="banner" id="setup-banner" hidden>
+  <h2>Find your TV</h2>
+  <p>Tap Settings, then Scan for TVs (or type the TV's IP address). The TV must be on the same Wi‑Fi as this phone and the computer running the bridge.</p>
+  <button class="primary" id="btn-setup" style="width:100%">Open settings</button>
+</div>
+
+<div class="row r3">
+  <button class="power" data-key="KEY_POWER" aria-label="Power"><svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button>
+  <button id="btn-input" aria-label="Input"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span class="label">Input</span></button>
+  <button data-key="KEY_HOME" aria-label="Home"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/></svg></button>
+</div>
+
+<div class="pad">
+  <button class="up" data-key="KEY_UP" data-repeat aria-label="Up"><svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
+  <button class="left" data-key="KEY_LEFT" data-repeat aria-label="Left"><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+  <button class="ok" data-key="KEY_OK">OK</button>
+  <button class="right" data-key="KEY_RIGHT" data-repeat aria-label="Right"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+  <button class="down" data-key="KEY_DOWN" data-repeat aria-label="Down"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+</div>
+
+<div class="row r3">
+  <button data-key="KEY_RETURNS"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg><span class="label">Back</span></button>
+  <button data-key="KEY_MENU"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="label">Menu</span></button>
+  <button data-key="KEY_EXIT"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg><span class="label">Exit</span></button>
+</div>
+
+<div class="rockers">
+  <div class="rocker">
+    <button data-key="KEY_VOLUMEUP" data-repeat aria-label="Volume up"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <div class="lbl">VOL</div>
+    <button data-key="KEY_VOLUMEDOWN" data-repeat aria-label="Volume down"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+  </div>
+  <div class="mid">
+    <button data-key="KEY_MUTE" id="btn-mute" aria-label="Mute"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="m16 9 4 6M20 9l-4 6"/></svg></button>
+    <button data-key="KEY_INFO" aria-label="Info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>
+  </div>
+  <div class="rocker">
+    <button data-key="KEY_CHANNELUP" data-repeat aria-label="Channel up"><svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
+    <div class="lbl">CH</div>
+    <button data-key="KEY_CHANNELDOWN" data-repeat aria-label="Channel down"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+  </div>
+</div>
+
+<div class="row r5">
+  <button data-key="KEY_BACK" aria-label="Rewind"><svg viewBox="0 0 24 24"><path d="M11 18 3 12l8-6zM21 18l-8-6 8-6z"/></svg></button>
+  <button data-key="KEY_PLAY" aria-label="Play"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></button>
+  <button data-key="KEY_PAUSE" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M7 4h4v16H7zM13 4h4v16h-4z"/></svg></button>
+  <button data-key="KEY_STOP" aria-label="Stop"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
+  <button data-key="KEY_FORWARDS" aria-label="Fast forward"><svg viewBox="0 0 24 24"><path d="M13 6l8 6-8 6zM3 6l8 6-8 6z"/></svg></button>
+</div>
+
+<div class="row r4 apps">
+  <button class="netflix" data-app="netflix">Netflix</button>
+  <button class="youtube" data-app="youtube">YouTube</button>
+  <button class="prime" data-app="prime">Prime</button>
+  <button class="disney" data-app="disney">Disney+</button>
+</div>
+
+<details class="section">
+  <summary><span>Numbers, colours, subtitles</span><span>▾</span></summary>
+  <div class="row r4 colours">
+    <button data-key="KEY_RED" style="background:#a32d2d" aria-label="Red"></button>
+    <button data-key="KEY_GREEN" style="background:#2d8a4e" aria-label="Green"></button>
+    <button data-key="KEY_YELLOW" style="background:#b88a1b" aria-label="Yellow"></button>
+    <button data-key="KEY_BLUE" style="background:#2f5fc4" aria-label="Blue"></button>
+  </div>
+  <div class="row r3 num">
+    <button data-key="KEY_1">1</button><button data-key="KEY_2">2</button><button data-key="KEY_3">3</button>
+    <button data-key="KEY_4">4</button><button data-key="KEY_5">5</button><button data-key="KEY_6">6</button>
+    <button data-key="KEY_7">7</button><button data-key="KEY_8">8</button><button data-key="KEY_9">9</button>
+    <button data-key="KEY_SUBTITLE"><span class="label">Subs</span></button><button data-key="KEY_0">0</button><button data-key="KEY_CHANNELDOT">•</button>
+  </div>
+</details>
+
+<details class="section" id="apps-section">
+  <summary><span>Apps on the TV</span><span>▾</span></summary>
+  <div class="list" id="app-list"><button class="ghost" id="btn-load-apps">Load app list</button></div>
+</details>
+
+<div class="sheet" id="input-sheet">
+  <div>
+    <h2>Input</h2>
+    <div class="list" id="source-list">
+      <button data-source="0">TV</button><button data-source="3">HDMI 1</button><button data-source="4">HDMI 2</button>
+      <button data-source="5">HDMI 3</button><button data-source="6">HDMI 4</button><button data-source="1">AV</button>
+    </div>
+    <button class="ghost" style="width:100%;margin-top:12px" data-close>Close</button>
+  </div>
+</div>
+
+<div class="sheet" id="settings-sheet">
+  <div>
+    <h2>Settings</h2>
+    <button class="ghost" id="btn-scan" style="width:100%;margin-bottom:10px">Scan for TVs on the network</button>
+    <div class="devices" id="devices"></div>
+    <form id="config-form">
+      <div class="field"><label>TV IP address</label><input id="cfg-host" inputmode="decimal" placeholder="192.168.1.50" autocapitalize="off" autocorrect="off"></div>
+      <div class="field"><label>TV MAC address (found automatically, needed for Wake)</label><input id="cfg-mac" placeholder="AA:BB:CC:DD:EE:FF" autocapitalize="characters" autocorrect="off"></div>
+      <button class="primary" type="submit" style="width:100%">Save and connect</button>
+    </form>
+    <div class="list" style="margin-top:12px">
+      <button class="ghost" id="btn-pair">Pair again</button>
+      <button class="ghost" id="btn-forget">Forget pairing</button>
+    </div>
+    <p class="status" id="debug" style="margin-top:12px"></p>
+    <button class="ghost" style="width:100%" data-close>Close</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const APPS = {
+    netflix: { appId: '1', name: 'Netflix', url: 'netflix' },
+    youtube: { appId: '3', name: 'YouTube', url: 'youtube' },
+    prime: { appId: '2', name: 'Prime Video', url: 'amazon' },
+    disney: { appId: '295', name: 'Disney+', url: 'https://cd-dmgz.bamgrid.com/bbd/hisense_tv/index.html' },
+  };
+  let state = {};
+  let toastTimer;
+
+  function toast(msg, ms = 1800) {
+    const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+  }
+  function buzz(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
+
+  async function api(path, body) {
+    const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    return data;
+  }
+  const post = (path, body = {}) => api(path, body).catch((e) => toast(e.message, 2600));
+
+  function sendKey(key) { buzz(); post('/api/key', { key }); }
+
+  // Tap sends once; holding a rocker or arrow repeats.
+  document.querySelectorAll('[data-key]').forEach((btn) => {
+    const key = btn.dataset.key;
+    let timer = null, started = false;
+    const stop = () => { clearTimeout(timer); clearInterval(timer); timer = null; };
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); started = true; sendKey(key);
+      if (btn.hasAttribute('data-repeat')) {
+        timer = setTimeout(() => { timer = setInterval(() => sendKey(key), 220); }, 450);
+      }
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => btn.addEventListener(ev, stop));
+    btn.addEventListener('click', (e) => { if (started) { started = false; e.preventDefault(); } else sendKey(key); });
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  });
+
+  document.querySelectorAll('[data-app]').forEach((btn) => btn.addEventListener('click', () => { buzz(); post('/api/app', APPS[btn.dataset.app]); }));
+  document.querySelectorAll('[data-close]').forEach((btn) => btn.addEventListener('click', () => btn.closest('.sheet').classList.remove('open')));
+  document.querySelectorAll('.sheet').forEach((s) => s.addEventListener('click', (e) => { if (e.target === s) s.classList.remove('open'); }));
+
+  $('#btn-input').addEventListener('click', () => { $('#input-sheet').classList.add('open'); post('/api/sources'); });
+  $('#source-list').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-source]'); if (!b) return;
+    buzz(); post('/api/source', { sourceid: b.dataset.source, sourcename: b.dataset.name }); $('#input-sheet').classList.remove('open');
+  });
+  $('#btn-settings').addEventListener('click', openSettings);
+  $('#btn-setup').addEventListener('click', openSettings);
+  $('#btn-wake').addEventListener('click', () => { buzz(); post('/api/wake').then((r) => r && toast('Wake signal sent')); });
+  $('#btn-pair').addEventListener('click', () => post('/api/pair').then((r) => r && toast('Look at the TV for a PIN')));
+  $('#btn-forget').addEventListener('click', () => post('/api/forget').then((r) => r && toast('Pairing forgotten')));
+  $('#btn-load-apps').addEventListener('click', () => post('/api/apps'));
+  $('#app-list').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-appid]'); if (!b) return;
+    buzz(); post('/api/app', { appId: b.dataset.appid, name: b.dataset.name, url: b.dataset.url });
+  });
+
+  $('#pin-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const pin = $('#pin').value.trim(); if (!pin) return;
+    post('/api/pin', { pin }).then((r) => { if (r) { toast('PIN sent'); $('#pin').value = ''; } });
+  });
+  $('#config-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    post('/api/config', { host: $('#cfg-host').value, mac: $('#cfg-mac').value }).then((r) => { if (r) { toast('Connecting…'); $('#settings-sheet').classList.remove('open'); } });
+  });
+  $('#btn-scan').addEventListener('click', async () => {
+    const btn = $('#btn-scan'); btn.disabled = true; btn.textContent = 'Scanning…';
+    const box = $('#devices'); box.innerHTML = '';
+    try {
+      const { devices } = await api('/api/discover');
+      if (!devices.length) box.innerHTML = '<small style="color:var(--muted)">Nothing answered. Make sure the TV is on and type its IP address below (TV Settings → Network).</small>';
+      devices.forEach((d) => {
+        const b = document.createElement('button');
+        b.innerHTML = `<span>${d.friendlyName || d.modelName || d.ip}</span><small>${d.ip}${d.modelName ? ' · ' + d.modelName : ''}${d.likely ? '' : ' · probably not a Hisense'}</small>`;
+        b.addEventListener('click', () => { $('#cfg-host').value = d.ip; $('#cfg-mac').value = ''; });
+        box.appendChild(b);
+      });
+    } catch (err) { toast(err.message, 2600); }
+    btn.disabled = false; btn.textContent = 'Scan for TVs on the network';
+  });
+
+  function openSettings() {
+    $('#cfg-host').value = (state.config && state.config.host) || state.host || '';
+    $('#cfg-mac').value = (state.config && state.config.mac) || state.mac || '';
+    $('#settings-sheet').classList.add('open');
+  }
+
+  function render(s) {
+    state = Object.assign(state, s);
+    const dot = $('#dot'); dot.className = 'dot';
+    let text = '';
+    const host = (state.config && state.config.host) || state.host;
+    if (!host) { text = 'No TV set up yet'; }
+    else if (state.status === 'connected' && (state.authenticated || state.usingToken)) { dot.classList.add('on'); text = 'Connected'; }
+    else if (state.status === 'connected' && state.pinRequired) { dot.classList.add('warn'); text = 'Waiting for PIN'; }
+    else if (state.status === 'connected') { dot.classList.add('warn'); text = 'Connected, not yet paired'; }
+    else if (state.status === 'connecting') { text = 'Connecting…'; }
+    else if (state.status === 'unreachable') { dot.classList.add('off'); text = 'TV not reachable (off, asleep or wrong address)'; }
+    else if (state.status === 'auth-failed') { dot.classList.add('off'); text = 'TV refused the connection'; }
+    else text = state.status || '';
+    if (state.volume != null && dot.classList.contains('on')) text += ` · Vol ${state.volume}${state.muted ? ' (muted)' : ''}`;
+    $('#status').textContent = text;
+    $('#tvname').textContent = state.tvName || 'Hisense TV';
+    $('#pin-banner').hidden = !(state.status === 'connected' && state.pinRequired && !state.authenticated);
+    $('#setup-banner').hidden = Boolean(host);
+    $('#debug').textContent = [state.lastError, state.method && `login: ${state.method}`, state.protocolVersion && `protocol ${state.protocolVersion}`, state.paired ? 'paired' : 'not paired'].filter(Boolean).join(' · ');
+
+    if (Array.isArray(state.sources) && state.sources.length) {
+      $('#source-list').innerHTML = state.sources.map((src) => `<button data-source="${src.sourceid}" data-name="${(src.sourcename || '').replace(/"/g, '')}">${src.displayname || src.sourcename || src.sourceid}</button>`).join('');
+    }
+    if (Array.isArray(state.apps) && state.apps.length) {
+      $('#app-list').innerHTML = state.apps.map((a) => `<button data-appid="${a.appId || ''}" data-name="${(a.name || '').replace(/"/g, '')}" data-url="${(a.url || '').replace(/"/g, '')}">${a.name}</button>`).join('');
+    }
+  }
+
+  function listen() {
+    const es = new EventSource('/api/events');
+    es.onmessage = (e) => render(JSON.parse(e.data));
+    es.onerror = () => { es.close(); setTimeout(listen, 3000); };
+  }
+  api('/api/status').then(render).catch(() => {});
+  listen();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) api('/api/status').then(render).catch(() => {}); });
+})();
+</script>
+</body>
+</html>

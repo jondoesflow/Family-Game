@@ -1,0 +1,19 @@
+{
+  "name": "hisense-phone-remote",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Phone web remote for Hisense / VIDAA TVs. A small bridge on the home network relays taps to the TV's local MQTT service.",
+  "main": "server.js",
+  "bin": { "hisense-remote": "server.js" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "mqtt": "^5.10.0"
+  },
+  "devDependencies": {
+    "aedes": "^0.51.3"
+  }
+}
